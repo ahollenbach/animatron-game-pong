@@ -1,0 +1,10 @@
+#message-box {
+	width: 500px;
+	margin: 0 auto;
+}
+#message-box textarea {
+	width: 100%;
+}
+#input-message {
+	width: 100%;
+}
