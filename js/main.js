@@ -14,8 +14,6 @@ window.addEventListener("load", function() {
 	
 	canvas.addEventListener('mousemove', function(evt) {
 		setMousePos(canvas, evt);
-		//var message = 'Mouse position: ' + mousePos.x + ',' + mousePos.y;
-		//$("#coord").text(message);
 	}, false);
 
 
@@ -48,10 +46,8 @@ window.addEventListener("load", function() {
 	//tracks mouse location and moves the bar accordingly
 	var barMovementMod = function(t) {
 		var cur = this.$;
-		//var message = 'Mouse position: ' + mousePos.x + ',' + mousePos.y;
-		//$("#coord").text(message);
 		var newPos = mousePos.y;
-		newPos = Math.max(minY, Math.min(newPos, maxY)); //clamp it
+		//newPos = Math.max(minY, Math.min(newPos, maxY)); //clamping (works)
 		this.y = newPos-p1posY;
 	}
 
