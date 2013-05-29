@@ -2,6 +2,9 @@
 	width: 500px;
 	margin: 0 auto;
 }
+#pong-game {
+	margin: 0 auto;
+}
 #message-box textarea {
 	width: 100%;
 	height: 250px;
@@ -12,4 +15,8 @@
 .helper-text {
 	font-size: .7em;
 	color: #444444;
+}
+#game-canvas {
+	height: 450px;
+	width: 800px;
 }
