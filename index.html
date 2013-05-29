@@ -13,6 +13,7 @@
         <link rel="stylesheet" href="css/normalize.css">
         <link rel="stylesheet" href="css/main.css">
         <link rel="stylesheet" href="css/lobby.css">
+        <script src="js/vendor/hardcore.js"></script>
     </head>
     <body>
         <!--[if lt IE 7]>
@@ -22,11 +23,14 @@
 
         <h1>Animatron Pong</h1>
         <div id="message-box">
-            <textarea id="messages" name="chat-log"></textarea>
+            <textarea id="messages" name="chat-log" readonly></textarea>
             <input type="text" id="input-message" />
             <p class="helper-text">Press enter to send a message.</p>
         </div>
 
+        <div id="pong-game">
+            <canvas id="game-canvas" data-title="game-canvas"></canvas>
+        </div>
 
         </div>
         <script src="js/main.js"></script>
