@@ -2,13 +2,13 @@ window.addEventListener("load", function() {
     var box = document.querySelector("#messages");
     var input = document.querySelector("#input-message");
 
-    var ws = new WebSocket('ws://192.168.40.73:1337');
+    ws = new WebSocket('ws://192.168.40.73:1337');
     ws.onopen = function() {
-        ws.send('something');
+        //ws.send('something');
     };
     ws.onmessage = function(message) {
-        console.log('received: %s', message);
-        box.value += message.data + "\n";
+        box.appendChild(document.createTextNode((box.value == "" ? "" : "\n") + message.data));
+        box.scrollTop = box.scrollHeight;
     };
 
     input.addEventListener("keydown", (function(e) {
