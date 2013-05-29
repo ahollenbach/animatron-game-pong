@@ -13,7 +13,6 @@
         <link rel="stylesheet" href="css/normalize.css">
         <link rel="stylesheet" href="css/main.css">
         <link rel="stylesheet" href="css/lobby.css">
-        <script src="js/vendor/modernizr-2.6.2.min.js"></script>
     </head>
     <body>
         <!--[if lt IE 7]>
@@ -23,15 +22,39 @@
 
         <h1>Animatron Pong</h1>
         <div id="message-box">
-            <textarea name="chat-log"></textarea>
+            <textarea id="messages" name="chat-log"></textarea>
             <input type="text" id="input-message" />
             <p class="helper-text">Press enter to send a message.</p>
         </div>
 
 
         </div>
-        <!--script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script-->
-        <script>window.jQuery || document.write('<script src="js/vendor/jquery-1.9.1.min.js"><\/script>')</script>
         <script src="js/main.js"></script>
+        <script>
+            var box = document.querySelector("#messages");
+            var input = document.querySelector("#input-message");
+
+            var ws = new WebSocket('ws://192.168.40.73:1337');
+            ws.onopen = function() {
+                ws.send('something');
+            };
+            ws.onmessage = function(message) {
+                console.log('received: %s', message);
+                box.value += message.data + "\n";
+            };
+
+            input.addEventListener("keydown", (function(e) {
+                if (e.keyCode === 13) {
+                    var msg = this.value;
+
+                    if (!msg)
+                        return;
+
+                    ws.send(msg);
+                   this.value = "";
+
+                }
+            }));
+        </script>
     </body>
 </html>
