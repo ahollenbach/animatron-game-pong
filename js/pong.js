@@ -35,18 +35,19 @@ function initPong(ws) {
 
 	var speedMultiplier = defaultSpeedMult;
 
-	//gets random velocity between lower and upper,
+	//gets random velocity between lower and lower+range,
 	//result is randomly positive or negative
-	function getRand(lower, upper) {
-		return (Math.random() * upper + lower) * (Math.random() > .5 ? 1 : -1);
+	function getRand(lower, range) {
+		return (Math.floor(Math.random() * range) + lower) * (Math.random() > .5 ? 1 : -1);
 	}
 
 	//resets the puck to the center and gives it a random velocity
 	function resetPuck() {
 		puckPosX 	= 0;
 		puckPosY 	= 0;
-		puckvx		= getRand(8,10);
-		puckvy		= getRand(3,5);
+		puckvx		= getRand(10,2);
+		puckvy		= getRand(1,5);
+		console.log(puckvx,puckvy);
 	}
 
 	//bounces the puck (currently does not move puck out of paddle collisions)
@@ -73,8 +74,9 @@ function initPong(ws) {
 		}
 		//adjust speed multiplier based on time
 		var elapsed = t-tLastPoint;
-		if(elapsed>0.5) speedMultiplier -= 0.01/elapsed;
-		console.log(speedMultiplier);
+		if(elapsed>1) speedMultiplier -= 0.01/elapsed;
+		speedMultiplier = Math.max(1.001, speedMultiplier); //clamp it
+		//console.log(speedMultiplier);
 		//TODO: send the new vector
 	}
 
@@ -102,8 +104,8 @@ function initPong(ws) {
 	//puck attributes
 	var puckPosX 	= WIDTH/2;
 	var puckPosY 	= HEIGHT/2;
-	var puckvx		= getRand(10,11);
-	var puckvy		= getRand(5,10);
+	var	puckvx		= getRand(10,2);
+	var	puckvy		= getRand(1,5);
 	var puckRadius 	= 14;
 
 	//bar (paddle) attributes
@@ -151,7 +153,13 @@ function initPong(ws) {
 	}
 
 
-	/**************************SCORE FORMATTING**************************/
+	/**************************APPEARANCE/SCORE FORMATTING**************************/
+	var player1Color 		= '#BB0000';
+	var player2Color 		= '#0088BB';
+	var puckColor 	 		= '#000';
+	var overlayColor 		= '#000';
+	var overlayButtonColor 	= '#EEE';
+
 	var p1ScoreText = b('p1ScoreText'), p2ScoreText = b('p2ScoreText');
 
 	function generateScoreStyle(location,text) {
@@ -170,21 +178,35 @@ function initPong(ws) {
 												//but might defeat the purpose
 
 	var player1 = b('player1'), player2 = b('player2'), puck = b('puck');
+	var overlay = b("overlay").rect([WIDTH/2, HEIGHT/2], [WIDTH, HEIGHT])
+				              .fill(overlayColor)
+				              .modify(function(t) { this.alpha = 0.7; })
+	var overlayButton = b("overlayButton")
+							.rect([WIDTH/2, HEIGHT/2], [200, 100])
+							.fill(overlayButtonColor)
+							.paint(function(ctx) {
+								ctx.fillStyle = '#222';
+								ctx.font = '30pt sans-serif';
+								ctx.fillText("START", -100+35, 0+15);
+							})
+							.on(C.X_MCLICK, function(evt,t) {
+								overlay.disable();
+								overlayButton.disable();
+								//hide cursor
+								document.getElementById('game-canvas').style.cursor = 'none';
+								startGame(t);
+							});
 
 	var scene = b('scene')
-					.fill("#000")
 				    .add(
 				 		player1.rect([p1posX,p1posY], [barWidth,barHeight])
-						   	   .fill('#000')
-				   			   .modify(barMovementMod))
+						   	   .fill(player1Color))
 				    .add(
 						player2.rect([p2posX,p2posY], [barWidth,barHeight])
-					   		   .fill('#000')
-			    			   .modify(barMovementMod))
+					   		   .fill(player2Color))
 				    .add(
 						puck.circle([puckPosX,puckPosY], puckRadius)
-		  		   		    .fill('#000')
-						    .modify(puckMovementMod))
+		  		   		    .fill(puckColor))
 				    .add(
 					    p1ScoreText.paint(p1ScoreTextStyle = generateScoreStyle(1,p1Score)))
 				    .add(
@@ -215,9 +237,19 @@ function initPong(ws) {
 			"bgfill" : { color : "#FFF" }
 		} 
 	}).load(scene);
-
+	scene.add(overlay);
+	scene.add(overlayButton);
 	//TODO: only start game when "play" has been hit
 	pong.play();
+
+	function startGame(t) {
+		//add all the modifiers (puts game into effect)
+		puck.modify(puckMovementMod);
+		player1.modify(barMovementMod);
+		player2.modify(barMovementMod);
+		//set current time to start time
+		tLastPoint = t;
+	}
 
 	return pong;
 }
