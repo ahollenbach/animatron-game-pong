@@ -6,6 +6,8 @@ const MessageTypes = {
     START_PONG : "start_pong"
 }
 
+var usernameValidator = /^[A-Za-z0-9]+(?:[ _-][A-Za-z0-9]+)*$/;
+
 var WebSocketServer = require('ws').Server
   , wss = new WebSocketServer({port: 1337});
 
@@ -30,10 +32,23 @@ wss.on('connection', function(ws) {
 
         switch (json.type) {
             case MessageTypes.INITIAL:
-                username = json.data.username;
-                ws.send(JSON.stringify({
-                    type : "added"
-                }));
+                if (usernameValidator.test(json.data.username)) {
+                    username = json.data.username;
+
+                    ws.send(JSON.stringify({
+                        type : "connection_success",
+                        data : {
+                            message : "Welcome to the chat."
+                        }
+                    }));
+                } else {
+                    ws.send(JSON.stringify({
+                        type : "connection_failure",
+                        data : {
+                            message : "The username \"" + json.data.username + "\" is invalid.\nUsernames can only consist of alphanumeric characters, underscores, hyphens, and spaces."
+                        }
+                    }));
+                }               
                 break;
 
             case MessageTypes.MESSAGE:

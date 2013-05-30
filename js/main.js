@@ -1,6 +1,7 @@
 const MessageTypes = {
     MESSAGE : "message",
-    ADDED : "added"
+    CONNECTION_SUCCESS : "connection_success",
+    CONNECTION_FAILURE : "connection_failure"
 }
 
 window.addEventListener("load", function() {
@@ -25,22 +26,28 @@ window.addEventListener("load", function() {
             return;
         }
 
-        console.log(message);
+        // console.log(json);
 
         switch (json.type) {
             case MessageTypes.MESSAGE:
                 addMessageToBox(
                     (json.data.author ?
-                        "(" + dateFormat(new Date(json.data.time), "h:MM:ss TT") + ") " +
+                        "(" + dateFormat(new Date(json.data.time), "mediumTime") + ") " +
                         json.data.author + ": "
                         : "") +
                     json.data.text
                 );
                 break;
 
-            case MessageTypes.ADDED:
-                addMessageToBox("Welcome to the chat.");
+            case MessageTypes.CONNECTION_SUCCESS:
+                addMessageToBox(json.data.message);
+                break;
 
+            case MessageTypes.CONNECTION_FAILURE:
+                addMessageToBox(json.data.message)
+                
+                ws.close();
+                break;
         }
     };
 
