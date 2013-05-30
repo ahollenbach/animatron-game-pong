@@ -24,6 +24,7 @@ function initPong(ws) {
 
 	//adds a point to the player's score
 	function addPoint(playerNum) {
+		//TODO: send score here
 		if(playerNum == 1) {
 			p1ScoreText.unpaint(p1ScoreTextStyle);
 			p1ScoreText.paint(p1ScoreTextStyle = generateScoreStyle(1,++p1Score));
@@ -37,8 +38,8 @@ function initPong(ws) {
 	function resetPuck() {
 		puckPosX 	= 0;
 		puckPosY 	= 0;
-		puckvx		= getRand(10,15);
-		puckvy		= getRand(5,10);
+		puckvx		= getRand(8,10);
+		puckvy		= getRand(3,5);
 	}
 
 	//Animatron player declarations
@@ -56,7 +57,7 @@ function initPong(ws) {
 	//puck attributes
 	var puckPosX 	= WIDTH/2;
 	var puckPosY 	= HEIGHT/2;
-	var puckvx		= getRand(10,15);
+	var puckvx		= getRand(10,11);
 	var puckvy		= getRand(5,10);
 
 	var puckRadius 	= 14;
@@ -79,7 +80,8 @@ function initPong(ws) {
 		var newPos = mousePos.y;
 		newPos = Math.max(minY, Math.min(newPos, maxY)); //clamping
 		this.y = newPos-p1posY;
-		//this.y = -t * 35;
+		//ws.send(JSON.stringify({ type : "paddleLocation", data : { yCoord : this.y } }));
+		//TODO: send paddle location data
 	}
 
 	var puckMovementMod = function(t) {		
@@ -93,6 +95,7 @@ function initPong(ws) {
 			puckPosY = puckPosY - puckRadius < -HEIGHT/2 ? -HEIGHT/2 + puckRadius : HEIGHT/2 - puckRadius; 
 			puckvy *= -speedMultiplier;
 			puckvx *= speedMultiplier;
+			//TODO: send new vector
 		}
 
 		// Check left or right wall (point scored)
@@ -140,16 +143,17 @@ function initPong(ws) {
 	puck.modify(function(t) {
 		     this.$.collides(player1.v, function() {
 		     	//puckPosX = -WIDTH/2 + barOffset + barWidth;
+		     	//TODO: when hitting puck from side, puck gets stuck in paddle
 		     	puckvx *= -speedMultiplier;
 				puckvy *= speedMultiplier;
-		         console.log("p1collision");
+		        //TODO: send new vector
 		     })
 		  })
 		 .modify(function(t) {
 		     this.$.collides(player2.v, function() {
 		     	puckvx *= -speedMultiplier;
 				puckvy *= speedMultiplier;
-		         console.log("p2collision");
+		        //TODO: send new vector
 		     })
 		  });
 	puckPosX = 0; 
