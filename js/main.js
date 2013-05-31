@@ -1,7 +1,8 @@
 const MessageTypes = {
     MESSAGE : "message",
     CONNECTION_SUCCESS : "connection_success",
-    CONNECTION_FAILURE : "connection_failure"
+    CONNECTION_FAILURE : "connection_failure",
+    SERVER_STOPPED : "server_stopped"
 }
 
 window.addEventListener("load", function() {
@@ -40,15 +41,20 @@ window.addEventListener("load", function() {
                 break;
 
             case MessageTypes.CONNECTION_SUCCESS:
+            case MessageTypes.SERVER_STOPPED:
                 addMessageToBox(json.data.message);
                 break;
 
             case MessageTypes.CONNECTION_FAILURE:
                 addMessageToBox(json.data.message)
-                
+
                 ws.close();
                 break;
         }
+    };
+
+    ws.onclose = function() {
+        addMessageToBox("You have been disconnected from the chat server.");
     };
 
     initChat(ws, input);

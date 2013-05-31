@@ -127,8 +127,9 @@ function initPong(ws) {
 		var newPos = mousePos.y;
 		newPos = Math.max(minY, Math.min(newPos, maxY)); //clamping
 		this.y = newPos-p1posY;
-		//ws.send(JSON.stringify({ type : "paddleLocation", data : { yCoord : this.y } }));
+
 		//TODO: send paddle location data
+		ws.send(JSON.stringify({ type : "paddle_location", data : { yCoord : this.y } }));	
 	}
 
 	var puckMovementMod = function(t) {		

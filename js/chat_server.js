@@ -5,7 +5,7 @@ const MessageTypes = {
     SEND_INVITE : "send_invite",
     ACCEPT_INVITE : "accept_invite",
     START_PONG : "start_pong"
-}
+};
 
 // Regular expression used to check username validity. The rules are as follows:
 // Usernames can consist of lowercase and capitals
@@ -18,13 +18,14 @@ var usernameValidator = /^[A-Za-z0-9]+(?:[ _-][A-Za-z0-9]+)*$/;
 // Websocket initialization
 var WebSocket = require('ws');
 var WebSocketServer = WebSocket.Server;
+var Pong = require('pong');
+
+var clients = [];
 
 // Open server on port 1337
 var wss = new WebSocketServer({port: 1337});
 
 console.log("Server started");
-
-var clients = [];
 
 wss.on('connection', function(ws) {
 	var index = clients.push(ws) - 1;
@@ -54,7 +55,7 @@ wss.on('connection', function(ws) {
                     ws.send(JSON.stringify({
                         type : "connection_success",
                         data : {
-                            message : "Welcome to the chat " + username;
+                            message : "Welcome to the chat " + username
                         }
                     }));
                 } else {
@@ -71,8 +72,14 @@ wss.on('connection', function(ws) {
             // Chat message
             case MessageTypes.MESSAGE:
                 // Broadcast chat message to all users
-                for (var i = 0; i < clients.length; i++)
+                for (var i = 0; i < clients.length; i++) {
+                    console.log(clients.index);
                     sendMessage(clients[i], i == index ? "Me" : username, json.data.message);
+                }
+                break;
+
+            case MessageTypes.START_PONG:
+                // Pong.initGame()
                 break;
 
             default:
@@ -90,6 +97,24 @@ wss.on('connection', function(ws) {
     	
     	logClients();
     });
+});
+
+// Send message to connected clients when closed
+process.on("SIGINT", function() {
+    console.log("\nServer stopped gracefully via Ctrl + C.");
+
+    clients.forEach(function(client) {
+        if (client.readyState == WebSocket.OPEN)
+            client.send(JSON.stringify({
+                type : "server_stopped",
+                data : {
+                    message : "The server was manually stopped."
+                }
+            }));
+    });
+
+    wss.close();
+    process.exit();
 });
 
 // Logs current number of clients to command line
