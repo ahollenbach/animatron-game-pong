@@ -4,6 +4,7 @@ function initPong(ws) {
 	const dt = 50/60; //50fps
 	//how far ahead the player looks for collisions
 	const PREDICT_SPAN = 1/75;
+	const SENTINEL = Math.pow(2,32) - 1;
 	//canvas size
 	const WIDTH = 800, HEIGHT = 450;
 	//reference to canvas
@@ -210,7 +211,8 @@ function initPong(ws) {
 	var player1 = b('player1'), player2 = b('player2'), puck = b('puck');
 	var overlay = b("overlay").rect([WIDTH/2, HEIGHT/2], [WIDTH, HEIGHT])
 				              .fill(overlayColor)
-				              .modify(function(t) { this.alpha = 0.7; })
+				              .alpha([0,SENTINEL],[.7,.7])
+				              
 	var overlayButton = b("overlayButton")
 							.rect([WIDTH/2, HEIGHT/2], [200, 100])
 							.fill(overlayButtonColor)
@@ -220,7 +222,9 @@ function initPong(ws) {
 								ctx.fillText("START", -100+35, 0+15);
 							})
 							.on(C.X_MCLICK, function(evt,t) {
-								overlay.disable();
+								overlay.alpha([t,t+1], [.7,0])
+								overlay.alpha([t+1,SENTINEL], [0,0])
+								//overlay.disable();
 								overlayButton.disable();
 								//hide cursor
 								document.getElementById('game-canvas').style.cursor = 'none';
