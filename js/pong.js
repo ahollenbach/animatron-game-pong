@@ -2,6 +2,8 @@ function initPong(ws) {
 	/**********************CONSTANTS/GLOBAL VARS**********************/
 	//change in time between frames
 	const dt = 50/60; //50fps
+	//how far ahead the player looks for collisions
+	const PREDICT_SPAN = 1/75;
 	//canvas size
 	const WIDTH = 800, HEIGHT = 450;
 	//reference to canvas
@@ -31,7 +33,9 @@ function initPong(ws) {
 
 	/**************************PUCK PHYSICS**************************/
 	//default speed multiplier for ball
-	const defaultSpeedMult = 1.06;
+	//const defaultSpeedMult = 1.06;
+	const defaultSpeedMult = 1;
+	const MAX_BOUNCE_ANGLE = Math.PI/3; //60 degrees
 
 	var speedMultiplier = defaultSpeedMult;
 
@@ -45,15 +49,16 @@ function initPong(ws) {
 	function resetPuck() {
 		puckPosX 	= 0;
 		puckPosY 	= 0;
-		puckvx		= getRand(10,2);
+		puckvx		= getRand(15,2);
+		//puckvx		= getRand(1,2);
 		puckvy		= getRand(1,5);
-		console.log(puckvx,puckvy);
+		//puckvy		= getRand(0,0);
 	}
 
-	//bounces the puck (currently does not move puck out of paddle collisions)
+	//bounces the puck and if the puck would get stuck, moves it out or lets the goal in
 	//direction: 'top', 'bottom', 'left', 'right'
 	//t: the elapsed time from the beginning of the match
-	function bouncePuck(direction,t) {
+	function bouncePuck(direction,t,player) {
 		switch(direction) {
 			case 'top':
 				puckPosY = -HEIGHT/2 + puckRadius;
@@ -63,20 +68,45 @@ function initPong(ws) {
 				puckvx *= speedMultiplier;
 				break;
 			case 'left':
-				//puckPosX = -WIDTH/2 + barOffset + barWidth;
-		     	//TODO: when hitting puck from side, puck gets stuck in paddle
+				var frontOfPaddleX = -WIDTH/2+paddleOffset+paddleWidth;
+				var frontOfPuckX = puckPosX-puckRadius;
+				if(frontOfPuckX < frontOfPaddleX /*&& (frontOfPuckX > frontOfPaddleX-puckRadius/2)*/) {
+					//puck must be AT MOST 1/4th past paddle front
+					puckPosX = frontOfPaddleX+puckRadius+1;
+					adjustVelocity(1,player);
+				}
+				break;
 			case 'right':
-				puckvx *= -speedMultiplier;
-				puckvy *= speedMultiplier;
+				var frontOfPaddleX = WIDTH/2-paddleOffset-paddleWidth;
+				var frontOfPuckX = puckPosX+puckRadius;
+				if(frontOfPuckX > frontOfPaddleX /*&& (frontOfPuckX < frontOfPaddleX+puckRadius/2)*/) { 
+					//puck must be at most 1/4th past paddle front
+					puckPosX = frontOfPaddleX-puckRadius-1;
+					adjustVelocity(2,player);
+				}
 				break;
 			default:
 				break;
 		}
+	}
+
+	//adjusts and reverses the velocity based on where the hit occurred on the paddle
+	//Precondition: puck should have collided with paddle and deemed bouncable
+	function adjustVelocity(playerNum,player) {
+		var paddleY = player.y;
+		var relIntersect = (paddleY - puckPosY) / (paddleHeight/2); //distance of ball center from paddle center
+		var bounceAngle = -relIntersect * MAX_BOUNCE_ANGLE;
+		var curBallSpeed = Math.sqrt(Math.pow(puckvx,2) + Math.pow(puckvy,2)); //a^2+b^2=c^2
+		if(playerNum == 2) bounceAngle = Math.PI - bounceAngle; //reverse direction
+		puckvx = curBallSpeed*Math.cos(bounceAngle);
+		puckvy = curBallSpeed*Math.sin(bounceAngle);
+		//speedMultiplier deprecated for now (set at 1)
+		puckvx *= speedMultiplier;
+		puckvy *= speedMultiplier;
 		//adjust speed multiplier based on time
-		var elapsed = t-tLastPoint;
-		if(elapsed>1) speedMultiplier -= 0.01/elapsed;
-		speedMultiplier = Math.max(1.001, speedMultiplier); //clamp it
-		//console.log(speedMultiplier);
+		//var elapsed = t-tLastPoint;
+		//if(elapsed>1) speedMultiplier -= 0.01/elapsed;
+		//speedMultiplier = Math.max(1.001, speedMultiplier); //clamp it
 		//TODO: send the new vector
 	}
 
@@ -104,26 +134,26 @@ function initPong(ws) {
 	//puck attributes
 	var puckPosX 	= WIDTH/2;
 	var puckPosY 	= HEIGHT/2;
-	var	puckvx		= getRand(10,2);
+	var	puckvx		= getRand(15,2);
 	var	puckvy		= getRand(1,5);
 	var puckRadius 	= 14;
 
-	//bar (paddle) attributes
-	var barWidth 	= 14;
-	var barHeight 	= 80;
-	var barOffset 	= 10; //offset from edge
+	//paddle attributes
+	var paddleWidth 	= 14;
+	var paddleHeight 	= 80;
+	var paddleOffset 	= 10; //offset from edge
 	var p1posY 		= HEIGHT/2;
-	var p1posX 		= barOffset + barWidth/2;
+	var p1posX 		= paddleOffset + paddleWidth/2;
 	var p2posY 		= HEIGHT/2;
-	var p2posX 		= WIDTH - barOffset - barWidth/2; //all assumes upper right corner as root
-	var minY		= barHeight/2;
-	var maxY		= HEIGHT - barHeight/2;
+	var p2posX 		= WIDTH - paddleOffset - paddleWidth/2; //all assumes upper right corner as root
+	var minY		= paddleHeight/2;
+	var maxY		= HEIGHT - paddleHeight/2;
 	
 
 	/**************************MODIFIERS**************************/
 
-	//tracks mouse location and moves the bar accordingly
-	var barMovementMod = function(t) {
+	//tracks mouse location and moves the paddle accordingly
+	var paddleMovementMod = function(t) {
 		var newPos = mousePos.y;
 		newPos = Math.max(minY, Math.min(newPos, maxY)); //clamping
 		this.y = newPos-p1posY;
@@ -174,7 +204,7 @@ function initPong(ws) {
 
 	/**************************SCENE CREATION**************************/
 	//Animatron player declarations
-	anm.M[C.MOD_COLLISIONS].predictSpan = 1/150 //smaller means more concise at higher speeds
+	anm.M[C.MOD_COLLISIONS].predictSpan = PREDICT_SPAN //smaller means more concise at higher speeds
 												//but might defeat the purpose
 
 	var player1 = b('player1'), player2 = b('player2'), puck = b('puck');
@@ -199,10 +229,10 @@ function initPong(ws) {
 
 	var scene = b('scene')
 				    .add(
-				 		player1.rect([p1posX,p1posY], [barWidth,barHeight])
+				 		player1.rect([p1posX,p1posY], [paddleWidth,paddleHeight])
 						   	   .fill(player1Color))
 				    .add(
-						player2.rect([p2posX,p2posY], [barWidth,barHeight])
+						player2.rect([p2posX,p2posY], [paddleWidth,paddleHeight])
 					   		   .fill(player2Color))
 				    .add(
 						puck.circle([puckPosX,puckPosY], puckRadius)
@@ -214,21 +244,26 @@ function initPong(ws) {
 
 	puck.modify(function(t) {
 		     this.$.collides(player1.v, function() {
-		     	bouncePuck('left',t);
+		     	bouncePuck('left',t,player1.v.state);
 		        //TODO: send new vector
 		     })
 		  })
 		 .modify(function(t) {
 		     this.$.collides(player2.v, function() {
-		     	bouncePuck('right',t);
+		     	bouncePuck('right',t,player2.v.state);
 		        //TODO: send new vector
 		     })
 		  });
 	puckPosX = 0; 
 	puckPosY = 0;
 
+	//make the game only check the inner-facing wall for collisions
+	player1.v.reactAs(Builder.path([[paddleWidth/2,-paddleHeight/2],[paddleWidth/2,paddleHeight/2]]));
+	player2.v.reactAs(Builder.path([[-paddleWidth/2,-paddleHeight/2],[-paddleWidth/2,paddleHeight/2]]));
+
+
 	var pong = createPlayer('game-canvas', {
-		//"debug"  : true,
+		"debug"  : true,
 		"mode" : C.M_DYNAMIC,
 		"anim" : {
 			"fps": 50, //doesn't actually work
@@ -245,8 +280,8 @@ function initPong(ws) {
 	function startGame(t) {
 		//add all the modifiers (puts game into effect)
 		puck.modify(puckMovementMod);
-		player1.modify(barMovementMod);
-		player2.modify(barMovementMod);
+		player1.modify(paddleMovementMod);
+		player2.modify(paddleMovementMod);
 		//set current time to start time
 		tLastPoint = t;
 	}
