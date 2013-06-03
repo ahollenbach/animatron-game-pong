@@ -4,7 +4,7 @@ const MessageTypes = {
     MESSAGE : "message",
     SEND_INVITE : "send_invite",
     ACCEPT_INVITE : "accept_invite",
-    START_PONG : "start_pong"
+    START_GAME : "start_game"
 };
 
 // Regular expression used to check username validity. The rules are as follows:
@@ -15,12 +15,13 @@ const MessageTypes = {
 // Cannot have a underscore, hypen or space at the start or end
 var usernameValidator = /^[A-Za-z0-9]+(?:[ _-][A-Za-z0-9]+)*$/;
 
-// Websocket initialization
+// Module imports
 var WebSocket = require('ws');
 var WebSocketServer = WebSocket.Server;
-var Pong = require('pong');
+var Client = require('client-list').Client;
+var ClientList = require('client-list').ClientList;
 
-var clients = [];
+var clients = new ClientList();
 
 // Open server on port 1337
 var wss = new WebSocketServer({port: 1337});
@@ -28,7 +29,7 @@ var wss = new WebSocketServer({port: 1337});
 console.log("Server started");
 
 wss.on('connection', function(ws) {
-	var index = clients.push(ws) - 1;
+	// var index = clients.push(ws) - 1;
 	var username = "Bob Loblaw";
 
     //ws.send('New user in chat');
@@ -51,6 +52,8 @@ wss.on('connection', function(ws) {
                 if (usernameValidator.test(json.data.username)) {
                     username = json.data.username;
 
+                    clients.pushClient(new Client(username, ws));
+
                     // Send connection success message
                     ws.send(JSON.stringify({
                         type : "connection_success",
@@ -72,14 +75,14 @@ wss.on('connection', function(ws) {
             // Chat message
             case MessageTypes.MESSAGE:
                 // Broadcast chat message to all users
-                for (var i = 0; i < clients.length; i++) {
-                    console.log(clients.index);
-                    sendMessage(clients[i], i == index ? "Me" : username, json.data.message);
-                }
+                clients.forEach(function() {
+                    sendMessage(this, json.data.message);
+                });
                 break;
 
             case MessageTypes.START_PONG:
-                // Pong.initGame()
+                var game = require(json.data.gameName);
+                game.init();
                 break;
 
             default:
@@ -119,17 +122,17 @@ process.on("SIGINT", function() {
 
 // Logs current number of clients to command line
 function logClients() {
-	console.log("There are currently " + clients.length + " clients online.");
+	console.log("There are currently " + clients.size() + " clients online.");
 }
 
 // Sends message text along with other user information as JSON to a client
-function sendMessage(client, username, message) {
-	if (client.readyState == WebSocket.OPEN) {
-        client.send(JSON.stringify({
+function sendMessage(client, message) {
+	if (client.connection.readyState == WebSocket.OPEN) {
+        client.connection.send(JSON.stringify({
             type : "message",
             data : {
                 time : (new Date()).getTime(),
-                author : username,
+                author : client.username,
                 text : message
             }
         }));

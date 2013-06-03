@@ -2,7 +2,8 @@ const MessageTypes = {
     MESSAGE : "message",
     CONNECTION_SUCCESS : "connection_success",
     CONNECTION_FAILURE : "connection_failure",
-    SERVER_STOPPED : "server_stopped"
+    SERVER_STOPPED : "server_stopped",
+    GAME_INITIALIZATION : "game_initialization"
 }
 
 window.addEventListener("load", function() {
