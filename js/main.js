@@ -3,7 +3,8 @@ const MessageTypes = {
     CONNECTION_SUCCESS : "connection_success",
     CONNECTION_FAILURE : "connection_failure",
     SERVER_STOPPED : "server_stopped",
-    GAME_INITIALIZATION : "game_initialization"
+    GAME_INITIALIZATION : "game_initialization",
+    PADDLE_LOCATION : "paddle_location"
 }
 
 window.addEventListener("load", function() {
@@ -50,6 +51,15 @@ window.addEventListener("load", function() {
                 addMessageToBox(json.data.message)
 
                 ws.close();
+                break;
+
+            case MessageTypes.GAME_INITIALIZATION:
+                addMessageToBox("A game has been started with " + json.data.opponentUsername);
+
+                break;
+
+            case MessageTypes.PADDLE_LOCATION:
+
                 break;
         }
     };

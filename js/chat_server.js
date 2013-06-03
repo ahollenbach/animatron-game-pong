@@ -4,7 +4,8 @@ const MessageTypes = {
     MESSAGE : "message",
     SEND_INVITE : "send_invite",
     ACCEPT_INVITE : "accept_invite",
-    START_GAME : "start_game"
+    START_GAME : "start_game",
+    CONFIRMATION : "confirmation"
 };
 
 // Regular expression used to check username validity. The rules are as follows:
@@ -18,10 +19,14 @@ var usernameValidator = /^[A-Za-z0-9]+(?:[ _-][A-Za-z0-9]+)*$/;
 // Module imports
 var WebSocket = require('ws');
 var WebSocketServer = WebSocket.Server;
-var Client = require('client-list').Client;
-var ClientList = require('client-list').ClientList;
+var ClientList = require('lobby-utils').ClientList;
+var GameSessionList = require('lobby-utils').GameSessionList;
 
 var clients = new ClientList();
+var gameSessions = new GameSessionList();
+
+var gameID = 0;
+var games = [];
 
 // Open server on port 1337
 var wss = new WebSocketServer({port: 1337});
@@ -52,23 +57,21 @@ wss.on('connection', function(ws) {
                 if (usernameValidator.test(json.data.username)) {
                     username = json.data.username;
 
-                    clients.pushClient(new Client(username, ws));
+                    clients.pushClient(username, ws, null);
 
                     // Send connection success message
-                    ws.send(JSON.stringify({
-                        type : "connection_success",
-                        data : {
+                    sendMessage(ws, 
+                        createMessage("connection_success", {
                             message : "Welcome to the chat " + username
-                        }
-                    }));
+                        })
+                    );
                 } else {
                     // Send connection failure message
-                    ws.send(JSON.stringify({
-                        type : "connection_failure",
-                        data : {
+                    sendMessage(ws, 
+                        createMessage("connection_failure", {
                             message : "The username \"" + json.data.username + "\" is invalid.\nUsernames can only consist of alphanumeric characters, underscores, hyphens, and spaces."
-                        }
-                    }));
+                        })
+                    );
                 }               
                 break;
 
@@ -76,13 +79,56 @@ wss.on('connection', function(ws) {
             case MessageTypes.MESSAGE:
                 // Broadcast chat message to all users
                 clients.forEach(function() {
-                    sendMessage(this, json.data.message);
+                    sendTextMessage(this, json.data.message);
                 });
                 break;
 
-            case MessageTypes.START_PONG:
-                var game = require(json.data.gameName);
-                game.init();
+            case MessageTypes.SEND_INVITE:
+                var inviteeConnection = clients.getConnection(json.data.inviteeUsername);
+
+                if (inviteeConnection)
+                    sendMessage(inviteeConnection, 
+                        createMessage("invite", {
+                            sender : username,
+                            gameType : json.data.gameType
+                        })
+                    );
+                break;
+
+            case MessageTypes.ACCEPT_INVITE:
+                var inviterConnection = clients.getConnection(json.data.inviterUsername);
+
+                if (inviterConnection) {
+                    var id = gameSessions.addGame(jsons.data.gameType, [json.data.inviterUsername, username]);
+                    clients.addData(json.data.inviterUsername, { gameSessionID : id });
+                    clients.addData(username, { gameSessionID : id });
+
+                    sendMessage(ws,
+                        createMessage("load_game", {
+                            gameType : json.data.gameType,
+                            opponentUsername : json.data.inviterUsername
+                        })
+                    );
+
+                    sendMessage(inviterConnection,
+                        createMessage("load_game", {
+                            gameType : json.data.gameType,
+                            opponentUsername : username
+                        })
+                    );                    
+                }
+                break;
+
+            case MessageTypes.CONFIRMATION:
+                var id = clients.getDataByName(username, "gameSessionID");
+                gameSessions.addConfirmation(id, username);
+
+                if (gameSessions.getConfirmationStatus(id)) {
+                    var game = require(json.data.gameName);
+                    var players = gameSessions.getGameSessionPlayers(id);
+
+                    game.init(players);
+                }
                 break;
 
             default:
@@ -108,12 +154,11 @@ process.on("SIGINT", function() {
 
     clients.forEach(function(client) {
         if (client.readyState == WebSocket.OPEN)
-            client.send(JSON.stringify({
-                type : "server_stopped",
-                data : {
-                    message : "The server was manually stopped."
-                }
-            }));
+            sendMessage(client, 
+                createMessage("server_stopped", { 
+                    message : "The server was manually stopped." 
+                })
+            );
     });
 
     wss.close();
@@ -125,16 +170,31 @@ function logClients() {
 	console.log("There are currently " + clients.size() + " clients online.");
 }
 
+function createMessage(type, data) {
+    return JSON.stringify({
+        type : type,
+        data : data
+    });
+}
+
+function sendMessage(connection, message) {
+    connection.send(message);
+}
+
+function sendMessageToUsers(usernames, message) {
+    for (var i = 0; i < usernames.length; i++)
+        clients.getConnection(usernames[i]).send(message);
+}
+
 // Sends message text along with other user information as JSON to a client
-function sendMessage(client, message) {
+function sendTextMessage(client, message) {
 	if (client.connection.readyState == WebSocket.OPEN) {
-        client.connection.send(JSON.stringify({
-            type : "message",
-            data : {
+        sendMessage(client.connection,
+            createMessage("message", {
                 time : (new Date()).getTime(),
                 author : client.username,
                 text : message
-            }
-        }));
+            })
+        );
     }
 }
