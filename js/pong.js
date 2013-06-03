@@ -267,7 +267,7 @@ function initPong(ws) {
 
 
 	var pong = createPlayer('game-canvas', {
-		"debug"  : true,
+		//"debug"  : true,
 		"mode" : C.M_DYNAMIC,
 		"anim" : {
 			"fps": 50, //doesn't actually work

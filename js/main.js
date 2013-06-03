@@ -52,10 +52,49 @@ window.addEventListener("load", function() {
     };
 
     initChat(ws, input);
-	initPong(ws); 
+    initUserList();
+	initPong(ws);
 
     function addMessageToBox(message) {
         box.appendChild(document.createTextNode((box.value == "" ? "" : "\n") + message));
         box.scrollTop = box.scrollHeight;
+    }
+
+    function initUserList() {
+        var users = JSON.stringify({ 
+                        type : "user", 
+                        data : [{ name : "User 1" }, 
+                               { name : "User 2" },
+                               { name : "User 3" },
+                               { name : "User 3" },
+                               { name : "User 3" },
+                               { name : "User 3" },
+                               { name : "User 3" },
+                               { name : "User 3" },
+                               { name : "User 3" },
+                               { name : "User 4" }] 
+                    });
+        try {
+            var json = JSON.parse(users);
+        } catch (e) {
+            console.log('This doesn\'t look like a valid JSON: ', users);
+            return;
+        }
+
+        var html = "<ul class=\"scroll\">"
+        for (var i = 0; i < json.data.length; i++) {
+            html += "<li class=\"user" + (i==0?" firstElem":"") + "\">" + json.data[i].name + "</li>";
+        }
+        html += "</ul>";
+        document.getElementById("user-list").innerHTML = html;
+
+        //add listener to each user button, onclick add to game
+        var userElems = document.getElementsByClassName('user');
+        for (var i = 0; i < userElems.length; i++) {
+            var user = userElems[i];
+            user.onclick= function() {
+                //alert(this.innerHTML);
+            }
+        }
     }
 });
