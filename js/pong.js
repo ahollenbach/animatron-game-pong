@@ -1,9 +1,13 @@
 function initPong(ws) {
 	/**********************CONSTANTS/GLOBAL VARS**********************/
-	//change in time between frames
-	const dt = 50/60; //50fps
+	//how far ahead the player looks for collisions
+	const PREDICT_SPAN = 1/150; //target:50fps
+	const SENTINEL = Math.pow(2,32) - 1;
 	//canvas size
-	const WIDTH = 800, HEIGHT = 450;
+	const CANVAS = {
+		WIDTH: 800, 
+		HEIGHT: 450
+	}
 	//reference to canvas
 	var canvas = document.getElementById('game-canvas');
 	const defaultPos = [0,0];
@@ -30,56 +34,89 @@ function initPong(ws) {
 
 
 	/**************************PUCK PHYSICS**************************/
-	//default speed multiplier for ball
-	const defaultSpeedMult = 1.06;
+	//default speed multiplier for puck
+	const DEFAULT_SPEED = 600; //pixels per second
+	const DEFAULT_ANGLE = Math.PI/6 //default starting angle
+	const DEFAULT_SPEED_MULT = 1.01;
+	const MAX_BOUNCE_ANGLE = Math.PI/3; //60 degrees
 
-	var speedMultiplier = defaultSpeedMult;
-
-	//gets random velocity between lower and lower+range,
-	//result is randomly positive or negative
-	function getRand(lower, range) {
-		return (Math.floor(Math.random() * range) + lower) * (Math.random() > .5 ? 1 : -1);
-	}
+	var speedMultiplier = DEFAULT_SPEED_MULT; //for modifying multiplier over time
 
 	//resets the puck to the center and gives it a random velocity
 	function resetPuck() {
-		puckPosX 	= 0;
-		puckPosY 	= 0;
-		puckvx		= getRand(10,2);
-		puckvy		= getRand(1,5);
-		console.log(puckvx,puckvy);
+		var velocity = getRandVelocity();
+		puck.x 	= 0;
+		puck.y 	= 0;
+		puck.vx	= velocity.vx;
+		puck.vy	= velocity.vy;
 	}
 
-	//bounces the puck (currently does not move puck out of paddle collisions)
+	//bounces the puck and if the puck would get stuck, moves it out or lets the goal in
 	//direction: 'top', 'bottom', 'left', 'right'
 	//t: the elapsed time from the beginning of the match
-	function bouncePuck(direction,t) {
+	function bouncePuck(direction,t,player) {
 		switch(direction) {
 			case 'top':
-				puckPosY = -HEIGHT/2 + puckRadius;
+				puck.y = -CANVAS.HEIGHT/2 + puck.radius;
 			case 'bottom':
-				if (direction == 'bottom') puckPosY = HEIGHT/2 - puckRadius; //doesn't re-assign if falling through from 'top'
-				puckvy *= -speedMultiplier;
-				puckvx *= speedMultiplier;
+				if (direction == 'bottom') puck.y = CANVAS.HEIGHT/2 - puck.radius; //doesn't re-assign if falling through from 'top'
+				puck.vy *= -speedMultiplier;
+				puck.vx *= speedMultiplier;
 				break;
 			case 'left':
-				//puckPosX = -WIDTH/2 + barOffset + barWidth;
-		     	//TODO: when hitting puck from side, puck gets stuck in paddle
+				/*var frontOfPaddleX = -CANVAS.WIDTH/2+paddle.offset+paddle.width;
+				var frontOfPuckX = puck.x-puck.radius;
+				if(frontOfPuckX < frontOfPaddleX /*&& (frontOfPuckX > frontOfPaddleX-puck.radius/2)*//*) {
+					//puck must be AT MOST 1/4th past paddle front
+					puck.x = frontOfPaddleX+puck.radius+1;
+					adjustVelocity(1,player);
+				}*/
+				adjustVelocity(1,player);
+				break;
 			case 'right':
-				puckvx *= -speedMultiplier;
-				puckvy *= speedMultiplier;
+				/*var frontOfPaddleX = CANVAS.WIDTH/2-paddle.offset-paddle.width;
+				var frontOfPuckX = puck.x+puck.radius;
+				if(frontOfPuckX > frontOfPaddleX /*&& (frontOfPuckX < frontOfPaddleX+puck.radius/2)*//*) { 
+					//puck must be at most 1/4th past paddle front
+					puck.x = frontOfPaddleX-puck.radius-1;
+					adjustVelocity(2,player);
+				}
+				*/
+				adjustVelocity(2,player);
 				break;
 			default:
 				break;
 		}
-		//adjust speed multiplier based on time
-		var elapsed = t-tLastPoint;
-		if(elapsed>1) speedMultiplier -= 0.01/elapsed;
-		speedMultiplier = Math.max(1.001, speedMultiplier); //clamp it
-		//console.log(speedMultiplier);
+	}
+
+	//adjusts and reverses the velocity based on where the hit occurred on the paddle
+	//Precondition: puck should have collided with paddle and deemed bouncable
+	function adjustVelocity(playerNum,player) {
+		var paddleY = player.y;
+		var relIntersect = (paddleY - puck.y) / (paddle.height/2 + puck.radius); //distance of puck center from paddle center+puckradius
+		var bounceAngle = -relIntersect * MAX_BOUNCE_ANGLE;
+		var curPuckSpeed = Math.sqrt(Math.pow(puck.vx,2) + Math.pow(puck.vy,2)); //a^2+b^2=c^2
+		if(playerNum == 2) bounceAngle = Math.PI - bounceAngle; //reverse direction
+		var newVectors = toComponentVectors(curPuckSpeed,bounceAngle);
+		puck.vx = newVectors.vx;
+		puck.vy = newVectors.vy;
+		puck.vx *= speedMultiplier;
+		puck.vy *= speedMultiplier;
 		//TODO: send the new vector
 	}
 
+	function toComponentVectors(speed,angle) {
+		return {
+			vx: speed*Math.cos(angle),
+			vy: speed*Math.sin(angle)
+		}
+	}
+
+	function getRandVelocity() {
+		var angle = Math.random() * DEFAULT_ANGLE*2 - DEFAULT_ANGLE; //-30 to 30 degrees
+		angle = (Math.random() > .5 ? angle : Math.PI-angle); //make half go one way, half the other
+		return toComponentVectors(DEFAULT_SPEED,angle)
+	}
 
 	/**************************GAME DATA**************************/
 	var p1Score = 0, p2Score = 0;
@@ -96,59 +133,102 @@ function initPong(ws) {
 			p2ScoreText.paint(p2ScoreTextStyle = generateScoreStyle(3,++p2Score));
 		}
 		tLastPoint = t;
-		speedMultiplier = defaultSpeedMult;
+		speedMultiplier = DEFAULT_SPEED_MULT;
 	}
 
 	
 	/**************************GAME ATTRIBUTES**************************/
 	//puck attributes
-	var puckPosX 	= WIDTH/2;
-	var puckPosY 	= HEIGHT/2;
-	var	puckvx		= getRand(10,2);
-	var	puckvy		= getRand(1,5);
-	var puckRadius 	= 14;
+	var velocity = getRandVelocity();
+	var puck = {
+		x: 		CANVAS.WIDTH/2,
+		y: 		CANVAS.HEIGHT/2,
+		vx: 	velocity.vx,
+		vy: 	velocity.vy,
+		radius: 14
+	}
 
-	//bar (paddle) attributes
-	var barWidth 	= 14;
-	var barHeight 	= 80;
-	var barOffset 	= 10; //offset from edge
-	var p1posY 		= HEIGHT/2;
-	var p1posX 		= barOffset + barWidth/2;
-	var p2posY 		= HEIGHT/2;
-	var p2posX 		= WIDTH - barOffset - barWidth/2; //all assumes upper right corner as root
-	var minY		= barHeight/2;
-	var maxY		= HEIGHT - barHeight/2;
+	//paddle attributes
+	const paddle = {
+		width:  14,
+		height: 80,
+		offset: 10,
+		startY: CANVAS.HEIGHT/2
+	}
+	var p1posX 		= paddle.offset + paddle.width/2;
+	var p2posX 		= CANVAS.WIDTH - paddle.offset - paddle.width/2; //all assumes upper right corner as root
+	var minY = paddle.height/2;
+	var maxY = CANVAS.HEIGHT - paddle.height/2;
+
+	// clamps the paddle so it does not leave the canvas.
+	// all paddle mods (player/ai) should call this before setting
+	// the y position of the paddle
+	function clamp(yPos) {
+		return Math.max(minY, Math.min(yPos, maxY));
+	}
+
+	// converts y positions from puck (global) frame to 
+	// paddle frame
+	function convertY(yPos) {
+		return yPos-paddle.startY;
+	}
+
+	/**************************AI**************************/
+	//TODO: Make this changable through UI
+	var ai1 = new ai_human(puck, paddle,1);
+	var ai2 = new ai_human(puck, paddle,2);
 	
 
 	/**************************MODIFIERS**************************/
+	//tracks mouse location and moves the paddle accordingly
+	// var movePaddle = function(evt) {
+	// 	var newPos = evt.pos[1]; //y position of mouse
+	// 	newPos = clamp(newPos); //clamping
+	// 	this.y = newPos-paddle.startY; //offset by initial position
+	// 	//TODO: send paddle location data
+	// }
 
-	//tracks mouse location and moves the bar accordingly
-	var barMovementMod = function(t) {
-		var newPos = mousePos.y;
-		newPos = Math.max(minY, Math.min(newPos, maxY)); //clamping
-		this.y = newPos-p1posY;
+	//TODO: change to use built-in mousemove (code above)
+	var humanPlayerMod = function(t) {
+		var newPos = clamp(mousePos.y);
+		this.y = convertY(newPos);
 
 		//TODO: send paddle location data
 		ws.send(JSON.stringify({ type : "paddle_location", data : { yCoord : this.y } }));	
 	}
 
-	var puckMovementMod = function(t) {		
-		puckPosX += puckvx * dt;
-		puckPosY += puckvy * dt;
-		this.x = puckPosX;
-		this.y = puckPosY;
+	var ai1Mod = function(t) {
+        var newPos = ai1.move(puck) + paddle.startY;
+        newPos = clamp(newPos);
+        this.y = convertY(newPos);
+        ai1.updPaddle(this.y);
+	}
 
-		// Check for top or bottom wall hit
-		if (puckPosY - puckRadius < -HEIGHT/2) {
+	var ai2Mod = function(t) {
+        var newPos = ai2.move(puck) + paddle.startY;
+        newPos = clamp(newPos);
+        this.y = convertY(newPos);
+        ai2.updPaddle(this.y);
+	}
+
+	var puckMovementMod = function(t) {
+		var dt = t-this._._appliedAt;
+		puck.x += puck.vx * dt;
+		puck.y += puck.vy * dt;
+		this.x = puck.x;
+		this.y = puck.y;
+
+		// Check for wall hits
+		if (puck.y - puck.radius < -CANVAS.HEIGHT/2) {
 			bouncePuck('top',t);
-		} else if(puckPosY + puckRadius > HEIGHT/2) {
+		} else if(puck.y + puck.radius > CANVAS.HEIGHT/2) {
 			bouncePuck('bottom',t);
 		}
 
 		// Check left or right wall (point scored)
-		if (puckPosX - puckRadius < -WIDTH/2 || puckPosX + puckRadius > WIDTH/2) {
-			if(puckPosX - puckRadius < -WIDTH/2) addPoint(1,t);
-			else addPoint(2,t);
+		if (puck.x - puck.radius < -CANVAS.WIDTH/2 || puck.x + puck.radius > CANVAS.WIDTH/2) {
+			if(puck.x - puck.radius < -CANVAS.WIDTH/2) addPoint(2,t); //score on left, player 2 point
+			else addPoint(1,t);
 			resetPuck();
 		}
 	}
@@ -167,7 +247,7 @@ function initPong(ws) {
 		return  function(ctx) {
 			      ctx.fillStyle = '#444';
 			      ctx.font = '30pt sans-serif';
-			      ctx.fillText(text, WIDTH*location/4, 50);
+			      ctx.fillText(text, CANVAS.WIDTH*location/4, 50);
 				}
 	}
 	var p1ScoreTextStyle, p2ScoreTextStyle;
@@ -175,15 +255,15 @@ function initPong(ws) {
 
 	/**************************SCENE CREATION**************************/
 	//Animatron player declarations
-	anm.M[C.MOD_COLLISIONS].predictSpan = 1/150 //smaller means more concise at higher speeds
-												//but might defeat the purpose
+	anm.M[C.MOD_COLLISIONS].predictSpan = PREDICT_SPAN;
 
-	var player1 = b('player1'), player2 = b('player2'), puck = b('puck');
-	var overlay = b("overlay").rect([WIDTH/2, HEIGHT/2], [WIDTH, HEIGHT])
+	var player1 = b('player1'), player2 = b('player2'), puckElem = b('puck');
+	var overlay = b("overlay").rect([CANVAS.WIDTH/2, CANVAS.HEIGHT/2], [CANVAS.WIDTH, CANVAS.HEIGHT])
 				              .fill(overlayColor)
-				              .modify(function(t) { this.alpha = 0.7; })
+				              .alpha([0,SENTINEL],[.7,.7])
+				              
 	var overlayButton = b("overlayButton")
-							.rect([WIDTH/2, HEIGHT/2], [200, 100])
+							.rect([CANVAS.WIDTH/2, CANVAS.HEIGHT/2], [200, 100])
 							.fill(overlayButtonColor)
 							.paint(function(ctx) {
 								ctx.fillStyle = '#222';
@@ -191,7 +271,9 @@ function initPong(ws) {
 								ctx.fillText("START", -100+35, 0+15);
 							})
 							.on(C.X_MCLICK, function(evt,t) {
-								overlay.disable();
+								overlay.alpha([t,t+1], [.7,0]) //fade to transparent for 1s, then stay that way
+								overlay.alpha([t+1,SENTINEL], [0,0])
+								//overlay.disable();
 								overlayButton.disable();
 								//hide cursor
 								document.getElementById('game-canvas').style.cursor = 'none';
@@ -200,54 +282,61 @@ function initPong(ws) {
 
 	var scene = b('scene')
 				    .add(
-				 		player1.rect([p1posX,p1posY], [barWidth,barHeight])
+				 		player1.rect([p1posX,paddle.startY], [paddle.width,paddle.height])
 						   	   .fill(player1Color))
 				    .add(
-						player2.rect([p2posX,p2posY], [barWidth,barHeight])
+						player2.rect([p2posX,paddle.startY], [paddle.width,paddle.height])
 					   		   .fill(player2Color))
 				    .add(
-						puck.circle([puckPosX,puckPosY], puckRadius)
+						puckElem.circle([puck.x,puck.y], puck.radius)
 		  		   		    .fill(puckColor))
 				    .add(
 					    p1ScoreText.paint(p1ScoreTextStyle = generateScoreStyle(1,p1Score)))
 				    .add(
 					    p2ScoreText.paint(p2ScoreTextStyle = generateScoreStyle(3,p2Score)));
 
-	puck.modify(function(t) {
+	puckElem.modify(function(t) {
 		     this.$.collides(player1.v, function() {
-		     	bouncePuck('left',t);
+		     	bouncePuck('left',t,player1.v.state);
 		        //TODO: send new vector
 		     })
 		  })
 		 .modify(function(t) {
 		     this.$.collides(player2.v, function() {
-		     	bouncePuck('right',t);
+		     	bouncePuck('right',t,player2.v.state);
 		        //TODO: send new vector
 		     })
 		  });
-	puckPosX = 0; 
-	puckPosY = 0;
+	puck.x = 0; 
+	puck.y = 0;
+
+	//make the game only check the inner-facing wall for collisions
+	player1.v.reactAs(Builder.path([[paddle.width/2,-paddle.height/2],[paddle.width/2,paddle.height/2]]));
+	player2.v.reactAs(Builder.path([[-paddle.width/2,-paddle.height/2],[-paddle.width/2,paddle.height/2]]));
+
 
 	var pong = createPlayer('game-canvas', {
 		//"debug"  : true,
 		"mode" : C.M_DYNAMIC,
 		"anim" : {
 			"fps": 50, //doesn't actually work
-			"width" : WIDTH,
-			"height" : HEIGHT,
+			"width" : CANVAS.WIDTH,
+			"height" : CANVAS.HEIGHT,
 			"bgfill" : { color : "#FFF" }
 		} 
 	}).load(scene);
 	scene.add(overlay);
 	scene.add(overlayButton);
-	//TODO: only start game when "play" has been hit
 	pong.play();
 
 	function startGame(t) {
+		//TODO: only start game once everything fades away
 		//add all the modifiers (puts game into effect)
-		puck.modify(puckMovementMod);
-		player1.modify(barMovementMod);
-		player2.modify(barMovementMod);
+		puckElem.modify(puckMovementMod);
+		player1.modify(ai1Mod);
+		player2.modify(humanPlayerMod);
+		// player1.on(C.X_MMOVE, movePaddle);
+		// player2.on(C.X_MMOVE, movePaddle);
 		//set current time to start time
 		tLastPoint = t;
 	}

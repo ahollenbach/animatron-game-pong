@@ -1,23 +1,20 @@
 <!DOCTYPE html>
-<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
-<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
-<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+<html>
     <head>
         <meta charset="utf-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
         <title>Animatron Pong</title>
         <meta name="description" content="A simple multiplayer game of pong implemented using the Animatron Player.">
         <meta name="viewport" content="width=device-width">
 
         <link rel="stylesheet" href="css/normalize.css">
-        <link rel="stylesheet" href="css/main.css">
         <link rel="stylesheet" href="css/lobby.css">
-        
+        <link rel="stylesheet" href="css/scrollbar.css">
+
         <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js"></script>
         <script type="text/javascript" src="js/vendor/hardcore.js"></script>
         <script type="text/javascript" src="js/vendor/date.format.js"></script>
         <script type="text/javascript" src="js/chat_client.js"></script>
+        <script type="text/javascript" src="js/ai_human.js"></script>  
         <script type="text/javascript" src="js/pong.js"></script> 
         <script type="text/javascript" src="js/node_modules/message.js"></script>
     </head>
@@ -28,13 +25,16 @@
         <div id="content">
 
         <h1>Animatron Pong</h1>
-        <div id="message-box">
-            <textarea id="messages" name="chat-log" readonly></textarea>
-            <input type="text" id="input-message" />
-            <p class="helper-text">Press enter to send a message.</p>
+        <div id="lobby">
+            <div id="user-list" class="balance"></div>
+            <div id="message-box" class="balance">
+                <textarea id="messages" class="scroll" name="chat-log" readonly></textarea>
+                <input type="text" id="input-message" />
+                <p class="helper-text">Press enter to send a message.</p>
+            </div>
         </div>
 
-        <div id="pong-game">
+        <div id="game">
             <canvas id="game-canvas" data-title="game-canvas"></canvas>
         </div>
 
