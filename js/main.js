@@ -68,6 +68,10 @@ window.addEventListener("load", function() {
                 $("#lobby").hide();
                 break;
 
+            case ServerMessage.INVITE_DECLINED:
+                // TODO: Visual representation of declined invite
+                break;
+
             case ServerMessage.USER_LEFT:
                 addMessageToBox(json.data.message);
                 var element = document.getElementById(json.data.username);
