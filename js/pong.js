@@ -194,7 +194,7 @@ function initPong(ws) {
 		this.y = convertY(newPos);
 
 		//TODO: send paddle location data
-		ws.send(JSON.stringify({ type : "paddle_location", data : { yCoord : this.y } }));	
+		sendMessage(ws,ClientMessage.PADDLE_LOCATION,{ yCoord : this.y });
 	}
 
 	var ai1Mod = function(t) {
@@ -277,6 +277,7 @@ function initPong(ws) {
 								overlayButton.disable();
 								//hide cursor
 								document.getElementById('game-canvas').style.cursor = 'none';
+								//sendMessage(ws,ClientMessage.START_GAME);
 								startGame(t);
 							});
 
