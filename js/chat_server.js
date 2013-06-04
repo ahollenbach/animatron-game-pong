@@ -53,8 +53,7 @@ wss.on('connection', function(ws) {
                 if (usernameValidator.test(json.data.username)) {
                     if (!clients.hasUser(json.data.username)) {
                         username = json.data.username;
-
-                        clients.pushClient(username, ws, null);
+                        console.log(username + " has connected.");
 
                         // Send connection success message
                         Message.sendMessage(ws, ServerMessage.CONNECTION_SUCCESS, {
@@ -63,12 +62,13 @@ wss.on('connection', function(ws) {
                         });
 
                         clients.forEach(function() {
-                            if (this.username != username)
-                                Message.sendMessage(this.connection, ServerMessage.NEW_USER, {
-                                    username : username,
-                                    message : username + " has joined the chat room."
-                                });
+                            Message.sendMessage(this.connection, ServerMessage.NEW_USER, {
+                                username : username,
+                                message : username + " has joined the chat room."
+                            });
                         });
+
+                        clients.pushClient(username, ws, null);
 
                         logClients();
                     } else {
@@ -95,6 +95,7 @@ wss.on('connection', function(ws) {
 
             case ClientMessage.SEND_INVITE:
                 var inviteeConnection = clients.getConnection(json.data.inviteeUsername);
+                console.log(username + " sent and invite to " + json.data.inviteeUsername);
 
                 if (inviteeConnection)
                     Message.sendMessage(inviteeConnection, ServerMessage.INVITE, {
