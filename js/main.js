@@ -57,7 +57,13 @@ window.addEventListener("load", function() {
                 break;
 
             case ServerMessage.INVITE:
-                alert("You were invited to a game!");
+                var sender = json.data.sender;
+                var result = confirm(sender + " invites you to play " + json.data.gameType);
+                var type = result ? ClientMessage.ACCEPT_INVITE : ClientMessage.DECLINE_INVITE;
+                sendMessage(ws,type,{inviterUsername : sender});
+                break;
+
+            case "game_initialization":
                 $("#game").show();
                 $("#lobby").hide();
                 break;
@@ -114,7 +120,7 @@ window.addEventListener("load", function() {
             var user = userElems[i];
             user.onclick= function() {
                 var username = this.id;
-                sendMessage(ws,ClientMessage.SEND_INVITE,{ inviteeUsername : username });
+                sendMessage(ws,ClientMessage.SEND_INVITE,{ inviteeUsername : username, gameType : "Pong" });
             }
         }
     }
