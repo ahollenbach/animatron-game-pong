@@ -6,7 +6,7 @@ function initChat(ws, input) {
             if (!msg)
                 return;
 
-            ws.send(JSON.stringify({ type : "message", data : { message : msg } }));
+            ws.send(JSON.stringify({ type : ClientMessage.MESSAGE, data : { message : msg } }));
            this.value = "";
         }
     }));

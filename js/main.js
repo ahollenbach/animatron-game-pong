@@ -1,9 +1,3 @@
-const MessageTypes = {
-    MESSAGE : "message",
-    CONNECTION_SUCCESS : "connection_success",
-    CONNECTION_FAILURE : "connection_failure"
-}
-
 window.addEventListener("load", function() {
 	var box = document.querySelector("#messages");
 	var input = document.querySelector("#input-message");
@@ -11,7 +5,7 @@ window.addEventListener("load", function() {
 	ws = new WebSocket('ws://192.168.40.73:1337');
     ws.onopen = function() {
         ws.send(JSON.stringify({
-            type : "initial",
+            type : ClientMessage.INITIAL,
             data : {
                 username : prompt("Enter a username.")
             }
@@ -29,7 +23,7 @@ window.addEventListener("load", function() {
         // console.log(json);
 
         switch (json.type) {
-            case MessageTypes.MESSAGE:
+            case ServerMessage.MESSAGE:
                 addMessageToBox(
                     (json.data.author ?
                         "(" + dateFormat(new Date(json.data.time), "mediumTime") + ") " +
@@ -39,16 +33,31 @@ window.addEventListener("load", function() {
                 );
                 break;
 
-            case MessageTypes.CONNECTION_SUCCESS:
+            case ServerMessage.CONNECTION_SUCCESS:
+            case ServerMessage.SERVER_STOPPED:
+            case ServerMessage.NEW_USER:
                 addMessageToBox(json.data.message);
                 break;
 
-            case MessageTypes.CONNECTION_FAILURE:
+            case ServerMessage.CONNECTION_FAILURE:
                 addMessageToBox(json.data.message)
-                
+
                 ws.close();
                 break;
+
+            case ServerMessage.GAME_INITIALIZATION:
+                addMessageToBox("A game has been started with " + json.data.opponentUsername);
+
+                break;
+
+            case ServerMessage.PADDLE_LOCATION:
+
+                break;
         }
+    };
+
+    ws.onclose = function() {
+        addMessageToBox("You have been disconnected from the chat server.");
     };
 
     initChat(ws, input);
