@@ -60,7 +60,7 @@ window.addEventListener("load", function() {
                 var sender = json.data.sender;
                 var result = confirm(sender + " invites you to play " + json.data.gameType);
                 var type = result ? ClientMessage.ACCEPT_INVITE : ClientMessage.DECLINE_INVITE;
-                sendMessage(ws,type,{inviterUsername : sender});
+                sendMessage(ws,type,{inviterUsername : sender, gameType : json.data.gameType});
                 break;
 
             case "game_initialization":
@@ -69,7 +69,7 @@ window.addEventListener("load", function() {
                 break;
 
             case ServerMessage.INVITE_DECLINED:
-                // TODO: Visual representation of declined invite
+                alert("You were declined by " + json.data.inviteeUsername + ".");
                 break;
 
             case ServerMessage.USER_LEFT:
