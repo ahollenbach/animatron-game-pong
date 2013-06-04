@@ -1,12 +1,5 @@
 // Possible message types that can be received from clients
-const MessageTypes = {
-    INITIAL : "initial",
-    MESSAGE : "message",
-    SEND_INVITE : "send_invite",
-    ACCEPT_INVITE : "accept_invite",
-    START_GAME : "start_game",
-    CONFIRMATION : "confirmation"
-};
+
 
 // Regular expression used to check username validity. The rules are as follows:
 // Usernames can consist of lowercase and capitals
@@ -19,8 +12,14 @@ var usernameValidator = /^[A-Za-z0-9]+(?:[ _-][A-Za-z0-9]+)*$/;
 // Module imports
 var WebSocket = require('ws');
 var WebSocketServer = WebSocket.Server;
-var ClientList = require('lobby-utils').ClientList;
-var GameSessionList = require('lobby-utils').GameSessionList;
+
+var lobbyUtils = require('lobby-utils');
+var ClientList = lobbyUtils.ClientList;
+var GameSessionList = lobbyUtils.GameSessionList;
+
+var message = require('message');
+var ClientMessage = message.ClientMessage;
+var ServerMessage = message.ServerMessage;
 
 var clients = new ClientList();
 var gameSessions = new GameSessionList();
@@ -37,9 +36,6 @@ wss.on('connection', function(ws) {
 	// var index = clients.push(ws) - 1;
 	var username = "Bob Loblaw";
 
-    //ws.send('New user in chat');
-    logClients();
-
     // Event handler for incoming messages
     ws.on('message', function(message) {
         // Verify that message is JSON
@@ -52,7 +48,7 @@ wss.on('connection', function(ws) {
 
         switch (json.type) {
             // Initial message from client, which sends user data such as username
-            case MessageTypes.INITIAL:
+            case ClientMessage.INITIAL:
                 // Connect to chat if the username is valid, or else report invalid username and refuse connection
                 if (usernameValidator.test(json.data.username)) {
                     username = json.data.username;
@@ -61,14 +57,25 @@ wss.on('connection', function(ws) {
 
                     // Send connection success message
                     sendMessage(ws, 
-                        createMessage("connection_success", {
-                            message : "Welcome to the chat " + username
+                        createMessage(ServerMessage.CONNECTION_SUCCESS, {
+                            message : "Welcome to the chat " + username + "."
                         })
                     );
+
+                    clients.forEach(function() {
+                        if (this.username != username)
+                            sendMessage(this.connection,
+                                createMessage(ServerMessage.NEW_USER, {
+                                    message : username + " has joined the chat room."
+                                })
+                            );
+                    })
+
+                    logClients();
                 } else {
                     // Send connection failure message
                     sendMessage(ws, 
-                        createMessage("connection_failure", {
+                        createMessage(ServerMessage.CONNECTION_FAILURE, {
                             message : "The username \"" + json.data.username + "\" is invalid.\nUsernames can only consist of alphanumeric characters, underscores, hyphens, and spaces."
                         })
                     );
@@ -76,26 +83,26 @@ wss.on('connection', function(ws) {
                 break;
 
             // Chat message
-            case MessageTypes.MESSAGE:
+            case ClientMessage.MESSAGE:
                 // Broadcast chat message to all users
                 clients.forEach(function() {
-                    sendTextMessage(this, json.data.message);
+                    sendTextMessage(this, username == this.username ? "Me" : username, json.data.message);
                 });
                 break;
 
-            case MessageTypes.SEND_INVITE:
+            case ClientMessage.SEND_INVITE:
                 var inviteeConnection = clients.getConnection(json.data.inviteeUsername);
 
                 if (inviteeConnection)
                     sendMessage(inviteeConnection, 
-                        createMessage("invite", {
+                        createMessage(ServerMessage.INVITE, {
                             sender : username,
                             gameType : json.data.gameType
                         })
                     );
                 break;
 
-            case MessageTypes.ACCEPT_INVITE:
+            case ClientMessage.ACCEPT_INVITE:
                 var inviterConnection = clients.getConnection(json.data.inviterUsername);
 
                 if (inviterConnection) {
@@ -104,14 +111,14 @@ wss.on('connection', function(ws) {
                     clients.addData(username, { gameSessionID : id });
 
                     sendMessage(ws,
-                        createMessage("load_game", {
+                        createMessage(ServerMessage.LOAD_GAME, {
                             gameType : json.data.gameType,
                             opponentUsername : json.data.inviterUsername
                         })
                     );
 
                     sendMessage(inviterConnection,
-                        createMessage("load_game", {
+                        createMessage(ServerMessage.LOAD_GAME, {
                             gameType : json.data.gameType,
                             opponentUsername : username
                         })
@@ -119,7 +126,7 @@ wss.on('connection', function(ws) {
                 }
                 break;
 
-            case MessageTypes.CONFIRMATION:
+            case ClientMessage.CONFIRMATION:
                 var id = clients.getDataByName(username, "gameSessionID");
                 gameSessions.addConfirmation(id, username);
 
@@ -139,12 +146,14 @@ wss.on('connection', function(ws) {
 
     // Event handler for closed connection between server and a client
     ws.on('close', function(connection) {
-    	console.log("A user disconnected");
+        if (clients.hasUser(username)) {
+        	console.log(username + " has disconnected.");
 
-        // Remove disconnected client from list of clients
-    	clients.splice(index, 1);
-    	
-    	logClients();
+            // Remove disconnected client from list of clients
+        	clients.removeClient(username);
+        	
+        	logClients();
+        }
     });
 });
 
@@ -152,10 +161,10 @@ wss.on('connection', function(ws) {
 process.on("SIGINT", function() {
     console.log("\nServer stopped gracefully via Ctrl + C.");
 
-    clients.forEach(function(client) {
-        if (client.readyState == WebSocket.OPEN)
-            sendMessage(client, 
-                createMessage("server_stopped", { 
+    clients.forEach(function() {
+        if (this.connection.readyState === WebSocket.OPEN)
+            sendMessage(this.connection, 
+                createMessage(ServerMessage.SERVER_STOPPED, { 
                     message : "The server was manually stopped." 
                 })
             );
@@ -187,12 +196,12 @@ function sendMessageToUsers(usernames, message) {
 }
 
 // Sends message text along with other user information as JSON to a client
-function sendTextMessage(client, message) {
-	if (client.connection.readyState == WebSocket.OPEN) {
+function sendTextMessage(client, author, message) {
+	if (client.connection.readyState === WebSocket.OPEN) {
         sendMessage(client.connection,
-            createMessage("message", {
+            createMessage(ServerMessage.MESSAGE, {
                 time : (new Date()).getTime(),
-                author : client.username,
+                author : author,
                 text : message
             })
         );
