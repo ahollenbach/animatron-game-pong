@@ -108,7 +108,7 @@ wss.on('connection', function(ws) {
                 var inviterConnection = clients.getConnection(json.data.inviterUsername);
 
                 if (inviterConnection) {
-                    var id = gameSessions.addGame(jsons.data.gameType, [json.data.inviterUsername, username]);
+                    var id = gameSessions.addGameSession(json.data.gameType, [json.data.inviterUsername, username]);
                     clients.addData(json.data.inviterUsername, { gameSessionID : id });
                     clients.addData(username, { gameSessionID : id });
 
@@ -122,6 +122,15 @@ wss.on('connection', function(ws) {
                         opponentUsername : username
                     });                    
                 }
+                break;
+
+            case ClientMessage.DECLINE_INVITE:
+                var inviterConnection = clients.getConnection(json.data.inviterUsername);
+
+                if (inviterConnection)
+                    Message.sendMessage(inviterConnection, ServerMessage.INVITE_DECLINED, {
+                        inviteeUsername : username
+                    });
                 break;
 
             case ClientMessage.CONFIRMATION:
