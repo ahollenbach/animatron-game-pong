@@ -1,8 +1,9 @@
 window.addEventListener("load", function() {
-	var box = document.querySelector("#messages");
-	var input = document.querySelector("#input-message");
+    var box = document.querySelector("#messages");
+    var input = document.querySelector("#input-message");
+    $("#game").hide();
 
-	ws = new WebSocket('ws://192.168.40.73:1337');
+    ws = new WebSocket('ws://192.168.40.73:1337');
     ws.onopen = function() {
         ws.send(JSON.stringify({
             type : ClientMessage.INITIAL,
@@ -48,10 +49,17 @@ window.addEventListener("load", function() {
                 var userList = $("ul.scroll");
                 var firstElem = (userList.children().length == 0) ? true : false;
                 userList.append(makeUser(json.data.username,firstElem));
+                var user = $(json.data.username);
+                user.onclick= function() {
+                    var username = this.id;
+                    sendMessage(ws,ClientMessage.SEND_INVITE,{ inviteeUsername : username });
+                }
                 break;
 
             case ServerMessage.INVITE:
                 alert("You were invited to a game!");
+                $("#game").show();
+                $("#lobby").hide();
                 break;
 
             case ServerMessage.USER_LEFT:
