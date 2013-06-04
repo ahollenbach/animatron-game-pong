@@ -35,8 +35,19 @@ window.addEventListener("load", function() {
 
             case ServerMessage.CONNECTION_SUCCESS:
             case ServerMessage.SERVER_STOPPED:
+                addMessageToBox(json.data.message);
+                break;
+
             case ServerMessage.NEW_USER:
                 addMessageToBox(json.data.message);
+
+                // TODO: Add new user to user list
+                break;
+
+            case ServerMessage.USER_LEFT:
+                addMessageToBox(json.data.message);
+
+                // TODO: Remove user from user list
                 break;
 
             case ServerMessage.CONNECTION_FAILURE:

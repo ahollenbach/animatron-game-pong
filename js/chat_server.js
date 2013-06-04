@@ -17,9 +17,9 @@ var lobbyUtils = require('lobby-utils');
 var ClientList = lobbyUtils.ClientList;
 var GameSessionList = lobbyUtils.GameSessionList;
 
-var message = require('message');
-var ClientMessage = message.ClientMessage;
-var ServerMessage = message.ServerMessage;
+var Message = require('message');
+var ClientMessage = Message.ClientMessage;
+var ServerMessage = Message.ServerMessage;
 
 var clients = new ClientList();
 var gameSessions = new GameSessionList();
@@ -51,34 +51,37 @@ wss.on('connection', function(ws) {
             case ClientMessage.INITIAL:
                 // Connect to chat if the username is valid, or else report invalid username and refuse connection
                 if (usernameValidator.test(json.data.username)) {
-                    username = json.data.username;
+                    if (!clients.hasUser(json.data.username)) {
+                        username = json.data.username;
 
-                    clients.pushClient(username, ws, null);
+                        clients.pushClient(username, ws, null);
 
-                    // Send connection success message
-                    sendMessage(ws, 
-                        createMessage(ServerMessage.CONNECTION_SUCCESS, {
+                        // Send connection success message
+                        Message.sendMessage(ws, ServerMessage.CONNECTION_SUCCESS, {
+                            userList : clients.getUsers(),
                             message : "Welcome to the chat " + username + "."
-                        })
-                    );
+                        });
 
-                    clients.forEach(function() {
-                        if (this.username != username)
-                            sendMessage(this.connection,
-                                createMessage(ServerMessage.NEW_USER, {
+                        clients.forEach(function() {
+                            if (this.username != username)
+                                Message.sendMessage(this.connection, ServerMessage.NEW_USER, {
+                                    username : username,
                                     message : username + " has joined the chat room."
-                                })
-                            );
-                    })
+                                });
+                        });
 
-                    logClients();
+                        logClients();
+                    } else {
+                       // Send connection failure message, username in use
+                        Message.sendMessage(ws, ServerMessage.CONNECTION_FAILURE, {
+                            message : "The username \"" + json.data.username + "\" is already in use."
+                        });  
+                    }
                 } else {
-                    // Send connection failure message
-                    sendMessage(ws, 
-                        createMessage(ServerMessage.CONNECTION_FAILURE, {
-                            message : "The username \"" + json.data.username + "\" is invalid.\nUsernames can only consist of alphanumeric characters, underscores, hyphens, and spaces."
-                        })
-                    );
+                    // Send connection failure message, invalid username
+                    Message.sendMessage(ws, ServerMessage.CONNECTION_FAILURE, {
+                        message : "The username \"" + json.data.username + "\" is invalid.\nUsernames can only consist of alphanumeric characters, underscores, hyphens, and spaces."
+                    });
                 }               
                 break;
 
@@ -94,12 +97,10 @@ wss.on('connection', function(ws) {
                 var inviteeConnection = clients.getConnection(json.data.inviteeUsername);
 
                 if (inviteeConnection)
-                    sendMessage(inviteeConnection, 
-                        createMessage(ServerMessage.INVITE, {
-                            sender : username,
-                            gameType : json.data.gameType
-                        })
-                    );
+                    Message.sendMessage(inviteeConnection, ServerMessage.INVITE, {
+                        sender : username,
+                        gameType : json.data.gameType
+                    });
                 break;
 
             case ClientMessage.ACCEPT_INVITE:
@@ -110,19 +111,15 @@ wss.on('connection', function(ws) {
                     clients.addData(json.data.inviterUsername, { gameSessionID : id });
                     clients.addData(username, { gameSessionID : id });
 
-                    sendMessage(ws,
-                        createMessage(ServerMessage.LOAD_GAME, {
-                            gameType : json.data.gameType,
-                            opponentUsername : json.data.inviterUsername
-                        })
-                    );
+                    Message.sendMessage(ws, ServerMessage.LOAD_GAME, {
+                        gameType : json.data.gameType,
+                        opponentUsername : json.data.inviterUsername
+                    });
 
-                    sendMessage(inviterConnection,
-                        createMessage(ServerMessage.LOAD_GAME, {
-                            gameType : json.data.gameType,
-                            opponentUsername : username
-                        })
-                    );                    
+                    Message.sendMessage(inviterConnection, ServerMessage.LOAD_GAME, {
+                        gameType : json.data.gameType,
+                        opponentUsername : username
+                    });                    
                 }
                 break;
 
@@ -151,6 +148,14 @@ wss.on('connection', function(ws) {
 
             // Remove disconnected client from list of clients
         	clients.removeClient(username);
+
+            // Tell all clients that the user has left
+            clients.forEach(function() {
+                Message.sendMessage(this.connection, ServerMessage.USER_LEFT, {
+                    username : username,
+                    message : username + " has left the chat room."
+                });
+            });
         	
         	logClients();
         }
@@ -163,11 +168,9 @@ process.on("SIGINT", function() {
 
     clients.forEach(function() {
         if (this.connection.readyState === WebSocket.OPEN)
-            sendMessage(this.connection, 
-                createMessage(ServerMessage.SERVER_STOPPED, { 
-                    message : "The server was manually stopped." 
-                })
-            );
+            Message.sendMessage(this.connection, ServerMessage.SERVER_STOPPED, { 
+                message : "The server was manually stopped." 
+            });
     });
 
     wss.close();
@@ -179,17 +182,6 @@ function logClients() {
 	console.log("There are currently " + clients.size() + " clients online.");
 }
 
-function createMessage(type, data) {
-    return JSON.stringify({
-        type : type,
-        data : data
-    });
-}
-
-function sendMessage(connection, message) {
-    connection.send(message);
-}
-
 function sendMessageToUsers(usernames, message) {
     for (var i = 0; i < usernames.length; i++)
         clients.getConnection(usernames[i]).send(message);
@@ -198,12 +190,10 @@ function sendMessageToUsers(usernames, message) {
 // Sends message text along with other user information as JSON to a client
 function sendTextMessage(client, author, message) {
 	if (client.connection.readyState === WebSocket.OPEN) {
-        sendMessage(client.connection,
-            createMessage(ServerMessage.MESSAGE, {
-                time : (new Date()).getTime(),
-                author : author,
-                text : message
-            })
-        );
+        Message.sendMessage(client.connection, ServerMessage.MESSAGE, {
+            time : (new Date()).getTime(),
+            author : author,
+            text : message
+        });
     }
 }
