@@ -1,14 +1,19 @@
 window.addEventListener("load", function() {
+    $("#lobby").hide();
+    $("#game").hide();
+});
+
+$("input[type=submit]").click(function() {
     var box = document.querySelector("#messages");
     var input = document.querySelector("#input-message");
-    $("#game").hide();
 
     ws = new WebSocket('ws://192.168.40.73:1337');
     ws.onopen = function() {
+        var username = $("input[name=username]").val();
         ws.send(JSON.stringify({
             type : ClientMessage.INITIAL,
             data : {
-                username : prompt("Enter a username.")
+                username : username
             }
         }));
     };
@@ -37,7 +42,8 @@ window.addEventListener("load", function() {
             case ServerMessage.CONNECTION_SUCCESS:
                 initUserList(json.data.userList);
                 addMessageToBox(json.data.message);
-                initPong(ws);
+                $("#login").hide();
+                $("#lobby").show();
                 break;
 
             case ServerMessage.SERVER_STOPPED:
@@ -49,11 +55,8 @@ window.addEventListener("load", function() {
                 var userList = $("ul.scroll");
                 var firstElem = (userList.children().length == 0) ? true : false;
                 userList.append(makeUser(json.data.username,firstElem));
-                var user = $(json.data.username);
-                user.onclick= function() {
-                    var username = this.id;
-                    sendMessage(ws,ClientMessage.SEND_INVITE,{ inviteeUsername : username });
-                }
+                var user = $("#"+json.data.username);
+                attachListener(user);
                 break;
 
             case ServerMessage.INVITE:
@@ -63,13 +66,18 @@ window.addEventListener("load", function() {
                 sendMessage(ws,type,{inviterUsername : sender, gameType : json.data.gameType});
                 break;
 
-            case "game_initialization":
+            case ServerMessage.INVITE_DECLINED:
+                alert("You were declined by " + json.data.inviteeUsername + ".");
+                break;
+
+            case ServerMessage.LOAD_GAME:
+                initPong(ws);
                 $("#game").show();
                 $("#lobby").hide();
                 break;
 
-            case ServerMessage.INVITE_DECLINED:
-                alert("You were declined by " + json.data.inviteeUsername + ".");
+            case "game_initialization":
+                
                 break;
 
             case ServerMessage.USER_LEFT:
@@ -119,17 +127,21 @@ window.addEventListener("load", function() {
         document.getElementById("user-list").innerHTML = html;
 
         //add listener to each user button, onclick invite to game
-        var userElems = document.getElementsByClassName('user');
+        var userElems = $('.user');
         for (var i = 0; i < userElems.length; i++) {
-            var user = userElems[i];
-            user.onclick= function() {
-                var username = this.id;
-                sendMessage(ws,ClientMessage.SEND_INVITE,{ inviteeUsername : username, gameType : "Pong" });
-            }
+            var user = $(userElems[i]);
+            attachListener(user);
         }
     }
 
     function makeUser(user,firstElem) {
         return "<li id=\"" + user + "\" class=\"user" + (firstElem?" firstElem":"") + "\">" + user + "</li>";
+    }
+
+    function attachListener(user) {
+        user.click(function() {
+            var username = this.id;
+            sendMessage(ws,ClientMessage.SEND_INVITE,{ inviteeUsername : username, gameType : "Pong" });
+        });
     }
 });
