@@ -152,30 +152,60 @@ function initPong(ws) {
 	const paddle = {
 		width:  14,
 		height: 80,
-		offset: 10
+		offset: 10,
+		startY: CANVAS.HEIGHT/2
 	}
-	var p1posY 		= CANVAS.HEIGHT/2;
 	var p1posX 		= paddle.offset + paddle.width/2;
-	var p2posY 		= CANVAS.HEIGHT/2;
 	var p2posX 		= CANVAS.WIDTH - paddle.offset - paddle.width/2; //all assumes upper right corner as root
 	var minY = paddle.height/2;
 	var maxY = CANVAS.HEIGHT - paddle.height/2;
+
+	// clamps the paddle so it does not leave the canvas.
+	// all paddle mods (player/ai) should call this before setting
+	// the y position of the paddle
+	function clamp(yPos) {
+		return Math.max(minY, Math.min(yPos, maxY));
+	}
+
+	// converts y positions from puck (global) frame to 
+	// paddle frame
+	function convertY(yPos) {
+		return yPos-paddle.startY;
+	}
+
+	/**************************AI**************************/
+	//TODO: Make this changable through UI
+	var ai1 = new ai_human(puck, paddle,1);
+	var ai2 = new ai_human(puck, paddle,2);
 	
 
 	/**************************MODIFIERS**************************/
 	//tracks mouse location and moves the paddle accordingly
 	// var movePaddle = function(evt) {
 	// 	var newPos = evt.pos[1]; //y position of mouse
-	// 	newPos = Math.max(minY, Math.min(newPos, maxY)); //clamping
-	// 	this.y = newPos-p1posY; //offset by initial position
+	// 	newPos = clamp(newPos); //clamping
+	// 	this.y = newPos-paddle.startY; //offset by initial position
 	// 	//TODO: send paddle location data
 	// }
 
 	//TODO: change to use built-in mousemove (code above)
-	var barMovementMod = function(t) {
-		var newPos = mousePos.y;
-		newPos = Math.max(minY, Math.min(newPos, maxY)); //clamping
-		this.y = newPos-p1posY;
+	var humanPlayerMod = function(t) {
+		var newPos = clamp(mousePos.y);
+		this.y = convertY(newPos);
+	}
+
+	var ai1Mod = function(t) {
+        var newPos = ai1.move(puck) + paddle.startY;
+        newPos = clamp(newPos);
+        this.y = convertY(newPos);
+        ai1.updPaddle(this.y);
+	}
+
+	var ai2Mod = function(t) {
+        var newPos = ai2.move(puck) + paddle.startY;
+        newPos = clamp(newPos);
+        this.y = convertY(newPos);
+        ai2.updPaddle(this.y);
 	}
 
 	var puckMovementMod = function(t) {
@@ -194,8 +224,8 @@ function initPong(ws) {
 
 		// Check left or right wall (point scored)
 		if (puck.x - puck.radius < -CANVAS.WIDTH/2 || puck.x + puck.radius > CANVAS.WIDTH/2) {
-			if(puck.x - puck.radius < -CANVAS.WIDTH/2) addPoint(1,t);
-			else addPoint(2,t);
+			if(puck.x - puck.radius < -CANVAS.WIDTH/2) addPoint(2,t); //score on left, player 2 point
+			else addPoint(1,t);
 			resetPuck();
 		}
 	}
@@ -249,10 +279,10 @@ function initPong(ws) {
 
 	var scene = b('scene')
 				    .add(
-				 		player1.rect([p1posX,p1posY], [paddle.width,paddle.height])
+				 		player1.rect([p1posX,paddle.startY], [paddle.width,paddle.height])
 						   	   .fill(player1Color))
 				    .add(
-						player2.rect([p2posX,p2posY], [paddle.width,paddle.height])
+						player2.rect([p2posX,paddle.startY], [paddle.width,paddle.height])
 					   		   .fill(player2Color))
 				    .add(
 						puckElem.circle([puck.x,puck.y], puck.radius)
@@ -300,8 +330,8 @@ function initPong(ws) {
 		//TODO: only start game once everything fades away
 		//add all the modifiers (puts game into effect)
 		puckElem.modify(puckMovementMod);
-		player1.modify(barMovementMod);
-		player2.modify(barMovementMod);
+		player1.modify(ai1Mod);
+		player2.modify(humanPlayerMod);
 		// player1.on(C.X_MMOVE, movePaddle);
 		// player2.on(C.X_MMOVE, movePaddle);
 		//set current time to start time
