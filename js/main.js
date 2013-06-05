@@ -1,6 +1,15 @@
+var audioContext;
+
 window.addEventListener("load", function() {
     $("#lobby").hide();
     $("#game").hide();
+
+    try {
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioContext = new AudioContext();
+    } catch (e) {
+        alert("Web Audio API is not supported in this browser");
+    }
 });
 
 $("input[type=submit]").click(function() {
@@ -72,7 +81,7 @@ $("input[type=submit]").click(function() {
                 break;
 
             case ServerMessage.LOAD_GAME:
-                game = initPong(ws);
+                game = initPong(ws, audioContext);
                 $("#game").show();
                 $("#lobby").hide();
                 break;
