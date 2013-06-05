@@ -37,7 +37,7 @@ function initPong(ws) {
 
 	/**************************PUCK PHYSICS**************************/
 	//default speed multiplier for puck
-	const DEFAULT_SPEED = 600; //pixels per second
+	const DEFAULT_SPEED = 150; //pixels per second
 	const DEFAULT_ANGLE = Math.PI/6 //default starting angle
 	const DEFAULT_SPEED_MULT = 1.01;
 	const MAX_BOUNCE_ANGLE = Math.PI/3; //60 degrees
