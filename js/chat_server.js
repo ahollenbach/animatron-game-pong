@@ -35,6 +35,7 @@ console.log("Server started");
 wss.on('connection', function(ws) {
 	// var index = clients.push(ws) - 1;
 	var username = "Bob Loblaw";
+    var currentGameType;
 
     // Event handler for incoming messages
     ws.on('message', function(message) {
@@ -108,6 +109,8 @@ wss.on('connection', function(ws) {
                 var inviterConnection = clients.getConnection(json.data.inviterUsername);
 
                 if (inviterConnection) {
+                    currentGameType = json.data.gameType;
+
                     var id = gameSessions.addGameSession(json.data.gameType, [json.data.inviterUsername, username]);
                     clients.addData(json.data.inviterUsername, { gameSessionID : id });
                     clients.addData(username, { gameSessionID : id });
@@ -138,7 +141,7 @@ wss.on('connection', function(ws) {
                 gameSessions.addConfirmation(id, username);
 
                 if (gameSessions.getConfirmationStatus(id)) {
-                    var game = require(json.data.gameName);
+                    var game = require(currentGameType);
                     var players = gameSessions.getGameSessionPlayers(id);
 
                     game.init(players);
@@ -146,7 +149,7 @@ wss.on('connection', function(ws) {
                 break;
 
             default:
-                console.log("Received invaild message type: " + json.type);
+                console.log("Received invalid message type: " + json.type);
                 break;
         }          
     });
