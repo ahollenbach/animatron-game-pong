@@ -1,4 +1,26 @@
-function initPong(ws) {
+function initPong(ws, audioContext) {
+	// Load pong sound effect
+	var pongSfx = null;
+
+	var request = new XMLHttpRequest();
+	request.open('GET', "assets/sounds/pong.wav", true);
+	request.responseType = 'arraybuffer';
+
+	request.onload = function() {
+		audioContext.decodeAudioData(request.response, function(buffer) {
+			pongSfx = buffer;
+		});
+	};
+
+	// request.send();
+
+	function playSoundEffect(buffer) {
+		// var source = audioContext.createBufferSource();
+		// source.buffer = buffer;
+		// source.connect(audioContext.destination);
+		// source.start(0);
+	}
+
 	/**********************CONSTANTS/GLOBAL VARS**********************/
 	//how far ahead the player looks for collisions
 	const PREDICT_SPAN = 1/150; //target:50fps
@@ -411,6 +433,8 @@ function initPong(ws) {
 		puck.vy = collisionData.vector.y;
 		puck.x = collisionData.pos.x;
 		puck.y = collisionData.pos.y;
+
+		playSoundEffect(pongSfx);
 	}
 
 	return pong;
