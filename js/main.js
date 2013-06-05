@@ -91,7 +91,7 @@ $("input[type=submit]").click(function() {
                 break;
 
             case "point_scored":
-                game.updateScore(json.data.id,json.data.puckInfo);
+                game.setNewScore(json.data.id,json.data.puckInfo);
                 break;
 
             case ServerMessage.USER_LEFT:

@@ -38,7 +38,7 @@ function initPong(ws) {
 
 	/**************************PUCK PHYSICS**************************/
 	//default speed multiplier for puck
-	const DEFAULT_SPEED = 150; //pixels per second
+	const DEFAULT_SPEED = 600; //pixels per second
 	const DEFAULT_ANGLE = Math.PI/6 //default starting angle
 	const DEFAULT_SPEED_MULT = 1.01;
 	const MAX_BOUNCE_ANGLE = Math.PI/3; //60 degrees
@@ -129,9 +129,8 @@ function initPong(ws) {
 	//adds a point to the player's score
 	//t: the elapsed time
 	function addPoint(playerNum,t) {
-		updateScore(playerNum);
 		//only send point scored if you scored goal
-		if(SEND_COLLISIONS && playerNum == playerId+1) sendPointScored(playerNum-1);
+		if(SEND_COLLISIONS && playerNum == playerId+1) sendPointScored(playerId);
 	}
 
 	function updateScore(playerNum) {
@@ -399,7 +398,7 @@ function initPong(ws) {
 		sendMessage(ws,"point_scored",data)
 	}
 
-	pong.updateScore = function(id,puckInfo) {
+	pong.setNewScore = function(id,puckInfo) {
 		updateScore(id+1);
 		puck.vx = puckInfo.vector.x;
 		puck.vy = puckInfo.vector.y;
