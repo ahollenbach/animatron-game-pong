@@ -6,11 +6,12 @@ window.addEventListener("load", function() {
 $("input[type=submit]").click(function() {
     var box = document.querySelector("#messages");
     var input = document.querySelector("#input-message");
-    var game,playerId;
+    var game,playerId,playerName,opponentName;
 
     ws = new WebSocket('ws://192.168.40.73:1337');
     ws.onopen = function() {
         var username = $("input[name=username]").val();
+        playerName = username;
         ws.send(JSON.stringify({
             type : ClientMessage.INITIAL,
             data : {
@@ -45,6 +46,9 @@ $("input[type=submit]").click(function() {
                 addMessageToBox(json.data.message);
                 $("#login").hide();
                 $("#lobby").show();
+                // start pinging
+                var now = new Date().getTime();
+                sendMessage(ws,ClientMessage.PING,{timeSent : now});
                 break;
 
             case ServerMessage.SERVER_STOPPED:
@@ -72,6 +76,7 @@ $("input[type=submit]").click(function() {
                 break;
 
             case ServerMessage.LOAD_GAME:
+                opponentName = json.data.opponentUsername;
                 game = initPong(ws);
                 $("#game").show();
                 $("#lobby").hide();
@@ -79,6 +84,11 @@ $("input[type=submit]").click(function() {
 
             case "game_initialization":
                 playerId = json.data.id;
+
+                // set player labels
+                $("#player1").html((playerId == 0) ? playerName : opponentName);
+                $("#player2").html((playerId == 1) ? playerName : opponentName);
+
                 game.startGame(playerId);
                 break;
 
@@ -109,8 +119,8 @@ $("input[type=submit]").click(function() {
             case ServerMessage.PING:
                 var now = new Date().getTime();
                 var ping = now - json.data.timeSent;
-                console.log(ping);
-                document.getElementById("ping").innerHTML = ping + "ms";
+                var pingElem = document.getElementById("pingNum")
+                if(Math.abs(pingElem.innerHTML - ping) > 2) pingElem.innerHTML = ping;
                 sendMessage(ws,ClientMessage.PING,{timeSent : now});
                 break;
         }

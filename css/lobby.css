@@ -78,17 +78,21 @@ h1 {
 /**NETWORK BAR**/
 #network-bar {
 	text-align: center;
+	margin:5px 0px;
+	width:800px;
 }
 #network-bar div.nametag {
 	padding:15px 50px;
-	margin: 5px 0px;
 	color: #F1F1F1;
-	width:200px;
+	width:150px;
+}
+#network-bar div#ping {
+	width:100px;
 }
 #network-bar div {
-	margin:5px 75px;
 	display: inline-block;
 	font-size: 20px;
+	margin:5px 0px;
 }
 #player1 {
 	background-color:#BB0000;
