@@ -13,9 +13,14 @@ h1 {
 	width: 75%;
 	margin:0px auto;
 }
+
+/**LOGIN**/
 #login {
 	margin: 100px;
 }
+
+
+
 #lobby {
 	min-width: 600px;
 	margin: 0 auto;
@@ -78,7 +83,7 @@ h1 {
 /**NETWORK BAR**/
 #network-bar {
 	text-align: center;
-	margin:5px 0px;
+	margin:5px auto;
 	width:800px;
 }
 #network-bar div.nametag {

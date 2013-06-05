@@ -9,6 +9,14 @@ $("input[type=submit]").click(function() {
     var game,playerId,playerName,opponentName;
 
     ws = new WebSocket('ws://192.168.40.73:1337');
+    /*
+    console.log(ws.readyState);
+    if (ws.readyState === ws.CLOSED) {
+        $("#server-status").html("OFFLINE");
+        $("#server-status").css("color","red");
+    } else {
+        $("#server-status").css("color","green");
+    }*/
     ws.onopen = function() {
         var username = $("input[name=username]").val();
         playerName = username;
