@@ -137,7 +137,7 @@ wss.on('connection', function(ws) {
             case ClientMessage.CONFIRMATION:
                 var id = clients.getDataByName(username, "gameSessionID");
                 gameSessions.addConfirmation(id, username);
-                
+
                 game = require(gameSessions.getGameSessionType(id));
 
                 if (gameSessions.getConfirmationStatus(id)) {                    
@@ -151,6 +151,8 @@ wss.on('connection', function(ws) {
                 break;
 
             case "paddle_location":
+            case "collision":
+            case "point_scored":
                 if (game != null)
                     game.handleMessage(json);
                 break;
@@ -196,6 +198,19 @@ process.on("SIGINT", function() {
     wss.close();
     process.exit();
 });
+
+// Broadcast messages to users from command line
+// process.stdin.resume();
+// process.stdin.setEncoding('utf8');
+
+// process.stdin.on('data', function (text) {
+//     clients.forEach(function() {
+//         if (typeof this.connection !== "undefined" && this.connection.readyState === WebSocket.OPEN)
+//             sendTextMessage(this.connection, "Server Admin", text);
+//     });
+
+//     console.log("Messaged online users: " + text);
+// });
 
 // Logs current number of clients to command line
 function logClients() {
