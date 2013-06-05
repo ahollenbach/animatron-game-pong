@@ -35,7 +35,7 @@ console.log("Server started");
 wss.on('connection', function(ws) {
 	// var index = clients.push(ws) - 1;
 	var username = "Bob Loblaw";
-    var currentGameType;
+    var game = null;
 
     // Event handler for incoming messages
     ws.on('message', function(message) {
@@ -69,7 +69,7 @@ wss.on('connection', function(ws) {
                             });
                         });
 
-                        clients.pushClient(username, ws, null);
+                        clients.pushClient(username, ws, {});
 
                         logClients();
                     } else {
@@ -109,8 +109,6 @@ wss.on('connection', function(ws) {
                 var inviterConnection = clients.getConnection(json.data.inviterUsername);
 
                 if (inviterConnection) {
-                    currentGameType = json.data.gameType;
-
                     var id = gameSessions.addGameSession(json.data.gameType, [json.data.inviterUsername, username]);
                     clients.addData(json.data.inviterUsername, { gameSessionID : id });
                     clients.addData(username, { gameSessionID : id });
@@ -139,13 +137,22 @@ wss.on('connection', function(ws) {
             case ClientMessage.CONFIRMATION:
                 var id = clients.getDataByName(username, "gameSessionID");
                 gameSessions.addConfirmation(id, username);
+                
+                game = require(gameSessions.getGameSessionType(id));
 
-                if (gameSessions.getConfirmationStatus(id)) {
-                    var game = require(currentGameType);
-                    var players = gameSessions.getGameSessionPlayers(id);
+                if (gameSessions.getConfirmationStatus(id)) {                    
+                    var connections = [];
+                    gameSessions.getGameSessionPlayers(id).forEach(function(player) {
+                        connections.push(clients.getConnection(player));
+                    });
 
-                    game.init(players);
+                    game.init(connections);
                 }
+                break;
+
+            case "paddle_location":
+                if (game != null)
+                    game.handleMessage(json);
                 break;
 
             default:
