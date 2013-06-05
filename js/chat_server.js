@@ -157,6 +157,11 @@ wss.on('connection', function(ws) {
                     game.handleMessage(json);
                 break;
 
+            // The server just sends back the ping information to the client
+            case ClientMessage.PING:
+                Message.sendMessage(ws, ServerMessage.PING, json.data);
+                break;
+
             default:
                 console.log("Received invalid message type: " + json.type);
                 break;

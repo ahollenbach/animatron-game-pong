@@ -114,6 +114,14 @@ $("input[type=submit]").click(function() {
 
                 ws.close();
                 break;
+
+            case ServerMessage.PING:
+                var now = new Date().getTime();
+                var ping = now - json.data.timeSent;
+                console.log(ping);
+                document.getElementById("ping").innerHTML = ping + "ms";
+                sendMessage(ws,ClientMessage.PING,{timeSent : now});
+                break;
         }
     };
 
