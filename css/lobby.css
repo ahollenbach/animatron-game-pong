@@ -75,6 +75,28 @@ h1 {
 	color: #444444;
 }
 
+/**NETWORK BAR**/
+#network-bar {
+	text-align: center;
+}
+#network-bar div.nametag {
+	padding:15px 50px;
+	margin: 5px 0px;
+	color: #F1F1F1;
+	width:200px;
+}
+#network-bar div {
+	margin:5px 75px;
+	display: inline-block;
+	font-size: 20px;
+}
+#player1 {
+	background-color:#BB0000;
+}
+#player2 {
+	background-color:#0088BB;
+}
+
 /**GAME**/
 #game {
 	margin: 0 auto;
