@@ -14,6 +14,8 @@ function initPong(ws) {
 	var b = Builder._$, C = anm.C;
 	//time the last point was scored
 	var tLastPoint = 0;
+	var playerId = 0;
+	var opponentY = 0;
 
 	/**************************MOUSE MOVEMENT**************************/
 	//save the current mouse position for reference
@@ -28,7 +30,7 @@ function initPong(ws) {
 
 	//add a listener for changes in mouse
 	var canvas = document.getElementById('game-canvas');
-	canvas.addEventListener('mousemove', function(evt) {
+	document.addEventListener('mousemove', function(evt) {
 		setMousePos(canvas, evt);
 	}, false);
 
@@ -115,7 +117,7 @@ function initPong(ws) {
 	function getRandVelocity() {
 		var angle = Math.random() * DEFAULT_ANGLE*2 - DEFAULT_ANGLE; //-30 to 30 degrees
 		angle = (Math.random() > .5 ? angle : Math.PI-angle); //make half go one way, half the other
-		return toComponentVectors(DEFAULT_SPEED,angle)
+		return toComponentVectors(DEFAULT_SPEED,0) //TODO: switch 0 back to angle (testing purposes)
 	}
 
 	/**************************GAME DATA**************************/
@@ -192,9 +194,11 @@ function initPong(ws) {
 	var humanPlayerMod = function(t) {
 		var newPos = clamp(mousePos.y);
 		this.y = convertY(newPos);
+		sendMessage(ws,"paddle_location",{ id: playerId, location : this.y });
+	}
 
-		//TODO: send paddle location data
-		sendMessage(ws,ClientMessage.PADDLE_LOCATION,{ yCoord : this.y });
+	var opponentMod = function(t) {
+		this.y = opponentY;
 	}
 
 	var ai1Mod = function(t) {
@@ -271,14 +275,14 @@ function initPong(ws) {
 								ctx.fillText("START", -100+35, 0+15);
 							})
 							.on(C.X_MCLICK, function(evt,t) {
+								sendMessage(ws,ClientMessage.CONFIRMATION);
+
 								overlay.alpha([t,t+1], [.7,0]) //fade to transparent for 1s, then stay that way
 								overlay.alpha([t+1,SENTINEL], [0,0])
 								//overlay.disable();
 								overlayButton.disable();
 								//hide cursor
 								document.getElementById('game-canvas').style.cursor = 'none';
-								//sendMessage(ws,ClientMessage.START_GAME);
-								startGame(t);
 							});
 
 	var scene = b('scene')
@@ -330,16 +334,25 @@ function initPong(ws) {
 	scene.add(overlayButton);
 	pong.play();
 
-	function startGame(t) {
-		//TODO: only start game once everything fades away
+	pong.startGame = function(id) {
+		playerId = id;
 		//add all the modifiers (puts game into effect)
 		puckElem.modify(puckMovementMod);
-		player1.modify(ai1Mod);
-		player2.modify(humanPlayerMod);
+		if(playerId == 0) {
+			player1.modify(humanPlayerMod);
+			player2.modify(opponentMod);
+		} else {
+			player1.modify(opponentMod);
+			player2.modify(humanPlayerMod);
+		}
 		// player1.on(C.X_MMOVE, movePaddle);
 		// player2.on(C.X_MMOVE, movePaddle);
 		//set current time to start time
-		tLastPoint = t;
+		tLastPoint = pong.state.time;
+	}
+
+	pong.setOpponentData = function(pos) {
+		opponentY = pos;
 	}
 
 	return pong;

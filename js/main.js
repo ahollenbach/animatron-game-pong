@@ -6,6 +6,7 @@ window.addEventListener("load", function() {
 $("input[type=submit]").click(function() {
     var box = document.querySelector("#messages");
     var input = document.querySelector("#input-message");
+    var game,playerId;
 
     ws = new WebSocket('ws://192.168.40.73:1337');
     ws.onopen = function() {
@@ -71,13 +72,18 @@ $("input[type=submit]").click(function() {
                 break;
 
             case ServerMessage.LOAD_GAME:
-                initPong(ws);
+                game = initPong(ws);
                 $("#game").show();
                 $("#lobby").hide();
                 break;
 
             case "game_initialization":
-                
+                playerId = json.data.id;
+                game.startGame(playerId);
+                break;
+
+            case "paddle_location":
+                game.setOpponentData(json.data.location);
                 break;
 
             case ServerMessage.USER_LEFT:
@@ -90,15 +96,6 @@ $("input[type=submit]").click(function() {
                 addMessageToBox(json.data.message)
 
                 ws.close();
-                break;
-
-            case ServerMessage.GAME_INITIALIZATION:
-                addMessageToBox("A game has been started with " + json.data.opponentUsername);
-
-                break;
-
-            case ServerMessage.PADDLE_LOCATION:
-
                 break;
         }
     };
