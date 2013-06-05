@@ -86,6 +86,14 @@ $("input[type=submit]").click(function() {
                 game.setOpponentData(json.data.location);
                 break;
 
+            case "collision":
+                game.updateLocation(json.data.collision);
+                break;
+
+            case "point_scored":
+                game.updateScore(json.data.id,json.data.puckInfo);
+                break;
+
             case ServerMessage.USER_LEFT:
                 addMessageToBox(json.data.message);
                 var element = document.getElementById(json.data.username);

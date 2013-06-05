@@ -3,6 +3,7 @@ function initPong(ws) {
 	//how far ahead the player looks for collisions
 	const PREDICT_SPAN = 1/150; //target:50fps
 	const SENTINEL = Math.pow(2,32) - 1;
+	const SEND_COLLISIONS = true;
 	//canvas size
 	const CANVAS = {
 		WIDTH: 800, 
@@ -89,6 +90,7 @@ function initPong(ws) {
 			default:
 				break;
 		}
+		if(SEND_COLLISIONS) sendCollisionData();
 	}
 
 	//adjusts and reverses the velocity based on where the hit occurred on the paddle
@@ -114,10 +116,11 @@ function initPong(ws) {
 		}
 	}
 
-	function getRandVelocity() {
+	function getRandVelocity(firstTime) {
 		var angle = Math.random() * DEFAULT_ANGLE*2 - DEFAULT_ANGLE; //-30 to 30 degrees
 		angle = (Math.random() > .5 ? angle : Math.PI-angle); //make half go one way, half the other
-		return toComponentVectors(DEFAULT_SPEED,0) //TODO: switch 0 back to angle (testing purposes)
+		if(firstTime) angle = 0;
+		return toComponentVectors(DEFAULT_SPEED,angle) //TODO: switch 0 back to angle (testing purposes)
 	}
 
 	/**************************GAME DATA**************************/
@@ -126,7 +129,12 @@ function initPong(ws) {
 	//adds a point to the player's score
 	//t: the elapsed time
 	function addPoint(playerNum,t) {
-		//TODO: send score here
+		updateScore(playerNum);
+		//only send point scored if you scored goal
+		if(SEND_COLLISIONS && playerNum == playerId+1) sendPointScored(playerNum-1);
+	}
+
+	function updateScore(playerNum) {
 		if(playerNum == 1) {
 			p1ScoreText.unpaint(p1ScoreTextStyle);
 			p1ScoreText.paint(p1ScoreTextStyle = generateScoreStyle(1,++p1Score));
@@ -134,14 +142,14 @@ function initPong(ws) {
 			p2ScoreText.unpaint(p2ScoreTextStyle);
 			p2ScoreText.paint(p2ScoreTextStyle = generateScoreStyle(3,++p2Score));
 		}
-		tLastPoint = t;
+		tLastPoint = pong.state.time;
 		speedMultiplier = DEFAULT_SPEED_MULT;
 	}
 
 	
 	/**************************GAME ATTRIBUTES**************************/
 	//puck attributes
-	var velocity = getRandVelocity();
+	var velocity = getRandVelocity(true);
 	var puck = {
 		x: 		CANVAS.WIDTH/2,
 		y: 		CANVAS.HEIGHT/2,
@@ -231,9 +239,10 @@ function initPong(ws) {
 
 		// Check left or right wall (point scored)
 		if (puck.x - puck.radius < -CANVAS.WIDTH/2 || puck.x + puck.radius > CANVAS.WIDTH/2) {
-			if(puck.x - puck.radius < -CANVAS.WIDTH/2) addPoint(2,t); //score on left, player 2 point
-			else addPoint(1,t);
-			resetPuck();
+			var scoringPlayer = 1;
+			if(puck.x - puck.radius < -CANVAS.WIDTH/2) scoringPlayer = 2 //score on left, player 2 point
+			else scoringPlayer = 1;
+			addPoint(scoringPlayer,t);
 		}
 	}
 
@@ -353,6 +362,56 @@ function initPong(ws) {
 
 	pong.setOpponentData = function(pos) {
 		opponentY = pos;
+	}
+
+	function sendCollisionData() {
+		var data = {
+			id: playerId,
+			collision: {
+				vector: {
+					x: puck.vx,
+					y: puck.vy
+				},
+				pos: {
+					x: puck.x,
+					y: puck.y
+				}
+			}
+		}
+		sendMessage(ws,"collision",data)
+	}
+
+	function sendPointScored() {
+		resetPuck();
+		var data = {
+			id: playerId,
+			puckInfo: {
+				vector: {
+					x: puck.vx,
+					y: puck.vy
+				},
+				pos: {
+					x: puck.x,
+					y: puck.y
+				}
+			}
+		}
+		sendMessage(ws,"point_scored",data)
+	}
+
+	pong.updateScore = function(id,puckInfo) {
+		updateScore(id+1);
+		puck.vx = puckInfo.vector.x;
+		puck.vy = puckInfo.vector.y;
+		puck.x = puckInfo.pos.x;
+		puck.y = puckInfo.pos.y;
+	}
+
+	pong.updateLocation = function(collisionData) {
+		puck.vx = collisionData.vector.x;
+		puck.vy = collisionData.vector.y;
+		puck.x = collisionData.pos.x;
+		puck.y = collisionData.pos.y;
 	}
 
 	return pong;
